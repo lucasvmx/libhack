@@ -1,0 +1,7 @@
+test*
+*.a
+*.exe
+*.o
+*.so
+*.dll
+.vscode*
