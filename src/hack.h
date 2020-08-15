@@ -12,6 +12,7 @@
 #ifndef LIBHACK_H
 #define LIBHACK_H
 
+#include "consts.h"
 #include <stdio.h>
 #include <windows.h>
 
@@ -23,9 +24,21 @@
 extern "C" {
 #endif
 
-#define LIBHACK_VERSION "0.1"
-#define BUFLEN 256
+/**
+ * @brief Obtém o tamanho do vetor
+ * 
+ */
+#define arraySize(x) (sizeof(x)/sizeof(x[0]))
+
+/**
+ * @brief Shows a message if the program is being debugged
+ * 
+ */
+#ifdef DEBUG
 #define libhack_debug(...) fprintf(stdout, __VA_ARGS__)
+#else
+#define libhack_debug(...) asm("nop\n\t");
+#endif
 
 /**
  * @brief Handle to libhack
@@ -41,13 +54,27 @@ struct libhack_handle
 	BOOL bProcessIsOpen;
 };
 
+/**
+ * @brief Gets the program version and return a string
+ * 
+ * @return const char* Program version
+ */
 LIBHACK_API const char *libhack_getversion();
+
+/**
+ * @brief Initialize libhack
+ * 
+ * @param process_name Name of process to be accessed by library
+ * @return struct libhack_handle* Handle to libhack
+ */
 LIBHACK_API struct libhack_handle *libhack_init(const char *process_name);
+
+/**
+ * @brief Cleanup resources used by libhack
+ * 
+ * @param handle Handle to libhack previously opened by libhack_init
+ */
 LIBHACK_API void libhack_free(struct libhack_handle *handle);
-LIBHACK_API BOOL libhack_open_process(struct libhack_handle *handle);
-LIBHACK_API DWORD libhack_get_process_id(struct libhack_handle *handle);
-LIBHACK_API int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr);
-LIBHACK_API int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value);
 
 #ifdef __cplusplus
 }

@@ -9,9 +9,12 @@
  * 
  */
 
+#ifdef INJECT_DLL
+
+#include <stdio.h>
 #include <windows.h>
 
-WINBOOL WINAPI DllMain(HANDLE _HDllHandle, DWORD _Reason, LPVOID _Reserved)
+WINBOOL WINAPI DllMain(HINSTANCE _HDllHandle, DWORD _Reason, LPVOID _Reserved)
 {
     (void)_HDllHandle;
     (void)_Reserved;
@@ -24,3 +27,4 @@ WINBOOL WINAPI DllMain(HANDLE _HDllHandle, DWORD _Reason, LPVOID _Reserved)
 
     return FALSE;
 }
+#endif

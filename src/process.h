@@ -9,159 +9,79 @@
  * 
  */
 
-#include <iostream>
+#ifndef PROCESS_H
+#define PROCESS_H
+
 #include "hack.h"
 
-using namespace std;
-
-#define BUFLEN 256
+/**
+ * @brief Opens the process specified when initializing library
+ * 
+ * @param handle Handle to libhack previously opened by libhack_init
+ * @return BOOL true on success false otherwise 
+ */
+LIBHACK_API BOOL libhack_open_process(struct libhack_handle *handle);
 
 /**
- * @brief Process class definitions
+ * @brief Gets the process ID
  * 
+ * @param handle Handle to libhack
+ * @return DWORD pid of process
  */
-class LIBHACK_API Process
-{
-	public:
-		/**
-		 * @brief Construct a new Process object
-		 * 
-		 * @param name Name of executable to be opened
-		 */
-		explicit Process(const char *name);
+LIBHACK_API DWORD libhack_get_process_id(struct libhack_handle *handle);
 
-		/**
-		 * @brief Construct a new Process object
-		 * 
-		 */
-		Process();
+/**
+ * @brief Reads a int from the specified 64bit address
+ * 
+ * @param handle Handle to libhack
+ * @param addr Address to be readed
+ * @return int Value readed from address
+ */
+LIBHACK_API int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr);
 
-		/**
-		 * @brief Destroy the Process object
-		 * 
-		 */
-		~Process();
+/**
+ * @brief Writes a int to the specified 64bit address
+ * 
+ * @param handle Handle to libhack
+ * @param addr Address to be written
+ * @param value Value to be written on address
+ * @return int Returns <= 0 on error and > 0 on success
+ */
+LIBHACK_API int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value);
 
-		/**
-		 * @brief Get the Base Address object
-		 * 
-		 * @return DWORD64
-		 */
-		DWORD64 GetBaseAddress64();
+/**
+ * @brief Gets the process base address in 64bit mode
+ * 
+ * @param handle Handle to libhack
+ * @return DWORD64 Base address of process
+ */
+LIBHACK_API DWORD64 libhack_get_base_addr64(struct libhack_handle *handle);
 
-		/**
-		 * @brief Open the process
-		 * 
-		 * @return true On success
-		 * @return false On error
-		 */
-		bool Open();
+/**
+ * @brief Reads a int from the specified address
+ * 
+ * @param handle Handle to libhack
+ * @param addr Address to be readed
+ * @return int Value readed from address
+ */
+LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr);
 
-		/**
-		 * @brief Check if the process is open
-		 * 
-		 * @return true 
-		 * @return false 
-		 */
-		bool IsOpen();
+/**
+ * @brief Writes a int to the specified address
+ * 
+ * @param handle Handle to libhack
+ * @param addr Address to be written
+ * @param value Value to be written on address
+ * @return int Returns <= 0 on error and > 0 on success
+ */
+LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD addr, int value);
 
-		/**
-		 * @brief Closes the process
-		 * 
-		 */
-		void Close();
+/**
+ * @brief Gets the process base address
+ * 
+ * @param handle Handle to libhack
+ * @return DWORD Zero on error or base address of process
+ */
+LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle);
 
-		/**
-		 * @brief 
-		 * 
-		 * @param address 
-		 * @param data 
-		 * @param len 
-		 * @return SIZE_T 
-		 */
-		SIZE_T ReadAddress64(DWORD64 address, void *data, size_t len);
-
-		/**
-		 * @brief Write process memory in the specified address
-		 * 
-		 * @param address Address of process
-		 * @param data Pointer to data to be written
-		 * @param len Length of data parameter
-		 * @return SIZE_T 
-		 */
-		SIZE_T WriteAddress64(DWORD64 address, void *data, size_t len);
-
-		/**
-		 * @brief 
-		 * 
-		 * @param address 
-		 * @return int 
-		 */
-		int ReadIntFromAddress64(DWORD64 address);
-
-		/**
-		 * @brief 
-		 * 
-		 * @return unsigned long 
-		 */
-		unsigned long GetID();
-
-		/**
-		 * @brief Get the Name object
-		 * 
-		 * @return const char* 
-		 */
-		const char *GetName();
-
-		/**
-		 * @brief 
-		 * 
-		 * @param process_name 
-		 * @return true 
-		 * @return false 
-		 */
-		static bool Find(const char *process_name);
-
-	private:
-		/**
-		 * @brief Name of the process
-		 * 
-		 */
-		string name;
-
-		/**
-		 * @brief process PID
-		 * 
-		 */
-		unsigned long identifier;
-
-		/**
-		 * @brief Path to the process file location
-		 * 
-		 */
-		string path;
-
-		/**
-		 * @brief process base address
-		 * 
-		 */
-		unsigned long long base_address;
-
-		/**
-		 * @brief Handle to process
-		 * 
-		 */
-		HANDLE hProcess;
-		
-		/**
-		 * @brief True process is open, False otherwise
-		 * 
-		 */
-		bool is_open;
-
-		/**
-		 * @brief Handle to module
-		 * 
-		 */
-		HMODULE hModule;
-};
+#endif // PROCESS_H
