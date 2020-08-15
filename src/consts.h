@@ -25,7 +25,7 @@
  * @brief Versão do programa (minor)
  * 
  */
-#define MINOR   2
+#define MINOR   1
 
 /**
  * @brief Versão do programa (patch)
