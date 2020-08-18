@@ -13,7 +13,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build Examples
-      run: make examples
-    - name: Build Library
+    - name: Build
+      run: make
       run: make dll
