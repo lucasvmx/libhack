@@ -13,9 +13,11 @@ jobs:
   
     steps:
     - uses: actions/checkout@v2
+    - name: Change folder
+      run: cd ../../src
+    - name: Print current folder
+      run: echo %cd%
     - name: Build examples
       run: make examples
-      working-directory: ../../src
     - name: Build library
       run: make dll
-      working-directory: ../../src
