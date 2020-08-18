@@ -13,9 +13,12 @@ jobs:
   
     steps:
     - uses: actions/checkout@v2
-    - name: Print current folder
-      run: ls
     - name: Build examples
       run: make examples
+      working-directory: src/
     - name: Build library
       run: make dll
+      working-directory: src/
+    - name: Cleanup
+      run: make clean
+      working-directory: src
