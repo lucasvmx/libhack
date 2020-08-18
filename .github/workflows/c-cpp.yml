@@ -13,11 +13,11 @@ jobs:
   
     steps:
     - uses: actions/checkout@v2
-    - name: Build examples
-      run: make examples
-      working-directory: src/
     - name: Build library
       run: make dll
+      working-directory: src/
+    - name: Build examples
+      run: make examples
       working-directory: src/
     - name: Cleanup
       run: make clean
