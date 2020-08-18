@@ -17,4 +17,3 @@ jobs:
       run: 
       - cd ../../src
       - make
-      - echo "current folder: %cd%"
