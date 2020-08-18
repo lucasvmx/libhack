@@ -295,3 +295,28 @@ LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle)
 	
 	return 0;   
 }
+
+LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle)
+{
+	DWORD state;
+
+	// Validate parameters
+	if(!handle)
+	{
+		libhack_debug("Invalid handle to libhack\n");
+		return FALSE;
+	}
+
+	// Check the flag
+	if(!handle->bProcessIsOpen)
+		return FALSE;
+
+	// Try to get exit code of the process if any
+	if(!GetExitCodeProcess(handle->hProcess, &state))
+	{
+		libhack_debug("Failed to get process exit code\n");
+		return FALSE;
+	}
+	
+	return state == STILL_ACTIVE ? TRUE : FALSE;
+}

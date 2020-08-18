@@ -46,12 +46,12 @@ extern "C" {
  */
 struct libhack_handle
 {
-	char process_name[BUFLEN];
-	DWORD64 pid;
-	DWORD64 base_addr;
-	HANDLE hProcess;
-	HMODULE hModule;
-	BOOL bProcessIsOpen;
+	char process_name[BUFLEN]; // Process name
+	DWORD64 pid; // PID of process
+	DWORD64 base_addr; // Base address of process
+	HANDLE hProcess; // Handle to process
+	HMODULE hModule; // Module handle to process
+	BOOL bProcessIsOpen; // True if process is currently open
 };
 
 /**
@@ -75,6 +75,12 @@ LIBHACK_API struct libhack_handle *libhack_init(const char *process_name);
  * @param handle Handle to libhack previously opened by libhack_init
  */
 LIBHACK_API void libhack_free(struct libhack_handle *handle);
+
+/**
+ * @brief Cleanup resources used by libhack
+ * 
+ */
+#define libhack_cleanup(handle) libhack_free(handle)
 
 #ifdef __cplusplus
 }
