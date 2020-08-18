@@ -37,6 +37,8 @@ BOOL libhack_open_process(struct libhack_handle *handle)
 
 			return TRUE;
 		}
+
+		return FALSE;
 	}
 
 	/* Handle already opened */	
