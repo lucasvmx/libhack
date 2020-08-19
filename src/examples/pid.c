@@ -17,7 +17,9 @@ int main()
     DWORD pid;
     const char *process = "explorer.exe";
 
-    // Initialize libhack
+    /*
+        Initialize library always
+    */
     hack = libhack_init(process);
     if(!hack) 
     {
@@ -25,7 +27,9 @@ int main()
         return 0;
     }
 
-    // Get PID
+    /*
+        We get the pid of process
+    */
     pid = libhack_get_process_id(hack);
 
     if(pid)
@@ -33,7 +37,9 @@ int main()
     else
         printf("We failed to get process ID: %lu\n", GetLastError());
 
-    // Free library
+    /*
+        Cleanup resources used by library
+    */
     libhack_free(hack);
 
     return 0;
