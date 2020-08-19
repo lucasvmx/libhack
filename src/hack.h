@@ -1,7 +1,7 @@
 /**
  * @file hack.h
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief 
+ * @brief Libhack core
  * @version 0.1
  * @date 2020-07-18
  * 
@@ -46,12 +46,41 @@ extern "C" {
  */
 struct libhack_handle
 {
-	char process_name[BUFLEN]; // Process name
-	DWORD64 pid; // PID of process
-	DWORD64 base_addr; // Base address of process
-	HANDLE hProcess; // Handle to process
-	HMODULE hModule; // Module handle to process
-	BOOL bProcessIsOpen; // True if process is currently open
+	/**
+	 * @brief Process name
+	 * 
+	 */
+	char process_name[BUFLEN];
+
+	/**
+	 * @brief Process identifier
+	 * 
+	 */
+	DWORD64 pid;
+
+	/**
+	 * @brief Process base address
+	 * 
+	 */
+	DWORD64 base_addr;
+
+	/**
+	 * @brief Process handle
+	 * 
+	 */
+	HANDLE hProcess;
+
+	/**
+	 * @brief Process module handle
+	 * 
+	 */
+	HMODULE hModule;
+
+	/**
+	 * @brief Flag to check if process is open
+	 * 
+	 */
+	BOOL bProcessIsOpen;
 };
 
 /**

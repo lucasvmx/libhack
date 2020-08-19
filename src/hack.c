@@ -15,7 +15,10 @@
 #include <string.h>
 #include "hack.h"
 
-// Armazena o número da versão
+/**
+ * @brief Contém o número da versão
+ * 
+ */
 char version[VERSION_NUMBER_LEN];
 
 const char *libhack_getversion()

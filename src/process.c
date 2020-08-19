@@ -1,5 +1,5 @@
 /**
- * @file process.cpp
+ * @file process.c
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
  * @brief Operações com processos
  * @version 0.1
@@ -122,7 +122,7 @@ int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr)
 	}
 
 	/* Read memory at the specified address */
-	if(!ReadProcessMemory(handle->hProcess, (const void*)(unsigned)addr, &value, sizeof(int), &readed)) {
+	if(!ReadProcessMemory(handle->hProcess, &addr, &value, sizeof(int), &readed)) {
 		libhack_debug("Failed to read memory: %lu\n", GetLastError());
 		return -1;
 	}
@@ -149,7 +149,7 @@ int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int
 	}
 
 	/* Write memory at the specified address */
-	if(!WriteProcessMemory(handle->hProcess, (void*)(unsigned)addr, &value, sizeof(int), &written)) {
+	if(!WriteProcessMemory(handle->hProcess, &addr, &value, sizeof(int), &written)) {
 		libhack_debug("Failed to write memory: %lu\n", GetLastError());
 		return 0;
 	}
@@ -192,7 +192,7 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
         if(strnicmp(procName, handle->process_name, strlen(handle->process_name)) == 0)
         {
             handle->hModule = module;
-			return (DWORD64)(int)module;
+			return (DWORD64)&module;
         }
     }
 	
@@ -219,7 +219,7 @@ LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD 
 	}
 
 	/* Read memory at the specified address */
-	if(!ReadProcessMemory(handle->hProcess, (const void*)(unsigned)addr, &value, sizeof(DWORD), &readed)) {
+	if(!ReadProcessMemory(handle->hProcess, &addr, &value, sizeof(DWORD), &readed)) {
 		libhack_debug("Failed to read memory: %lu\n", GetLastError());
 		return -1;
 	}
@@ -246,7 +246,7 @@ LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD a
 	}
 
 	/* Write memory at the specified address */
-	if(!WriteProcessMemory(handle->hProcess, (void*)(unsigned)addr, &value, sizeof(int), &written)) {
+	if(!WriteProcessMemory(handle->hProcess, &addr, &value, sizeof(int), &written)) {
 		libhack_debug("Failed to write memory: %lu\n", GetLastError());
 		return 0;
 	}
@@ -289,7 +289,7 @@ LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle)
         if(strnicmp(procName, handle->process_name, strlen(handle->process_name)) == 0)
         {
             handle->hModule = module;
-			return (DWORD)(int)module;
+			return (DWORD)&module;
         }
     }
 	

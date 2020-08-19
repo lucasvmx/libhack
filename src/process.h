@@ -1,7 +1,7 @@
 /**
- * @file process_handler.h
+ * @file process.h
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief 
+ * @brief Functions used to operate with processes
  * @version 0.1
  * @date 2020-07-18
  * 
