@@ -34,10 +34,14 @@ extern "C" {
  * @brief Shows a message if the program is being debugged
  * 
  */
-#ifdef DEBUG
+#if !defined(DEBUG) || !defined(NDEBUG)
 #define libhack_debug(...) fprintf(stdout, __VA_ARGS__)
 #else
-#define libhack_debug(...) asm("nop\n\t");
+#ifdef _MSC_VER
+#define libhack_debug(...)
+#else
+#define libhack_debug(...) asm("nop\n\t")
+#endif
 #endif
 
 /**
