@@ -1,5 +1,5 @@
 /**
- * @file main.cpp
+ * @file main.c
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
  * @brief 
  * @version 0.1

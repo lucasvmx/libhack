@@ -1,7 +1,7 @@
 /**
  * @file hack.h
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief 
+ * @brief Libhack core
  * @version 0.1
  * @date 2020-07-18
  * 
@@ -34,10 +34,14 @@ extern "C" {
  * @brief Shows a message if the program is being debugged
  * 
  */
-#ifdef DEBUG
+#if !defined(DEBUG) || !defined(NDEBUG)
 #define libhack_debug(...) fprintf(stdout, __VA_ARGS__)
 #else
-#define libhack_debug(...) asm("nop\n\t");
+#ifdef _MSC_VER
+#define libhack_debug(...)
+#else
+#define libhack_debug(...) asm("nop\n\t")
+#endif
 #endif
 
 /**
@@ -46,11 +50,40 @@ extern "C" {
  */
 struct libhack_handle
 {
+	/**
+	 * @brief Process name
+	 * 
+	 */
 	char process_name[BUFLEN];
+
+	/**
+	 * @brief Process identifier
+	 * 
+	 */
 	DWORD64 pid;
+
+	/**
+	 * @brief Process base address
+	 * 
+	 */
 	DWORD64 base_addr;
+
+	/**
+	 * @brief Process handle
+	 * 
+	 */
 	HANDLE hProcess;
+
+	/**
+	 * @brief Process module handle
+	 * 
+	 */
 	HMODULE hModule;
+
+	/**
+	 * @brief Flag to check if process is open
+	 * 
+	 */
 	BOOL bProcessIsOpen;
 };
 
@@ -75,6 +108,12 @@ LIBHACK_API struct libhack_handle *libhack_init(const char *process_name);
  * @param handle Handle to libhack previously opened by libhack_init
  */
 LIBHACK_API void libhack_free(struct libhack_handle *handle);
+
+/**
+ * @brief Cleanup resources used by libhack
+ * 
+ */
+#define libhack_cleanup(handle) libhack_free(handle)
 
 #ifdef __cplusplus
 }

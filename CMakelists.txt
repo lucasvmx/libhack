@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.10)
+
+# set the project name
+project(libhack)
+
+# add source files
+add_library(hack SHARED 
+    src/main.c 
+    src/process.c 
+    src/hack.c
+    src/process.h
+    src/consts.h
+    src/hack.h
+)
+
+# configure target properties
+set_target_properties(hack
+    PROPERTIES OUTPUT_NAME hack
+)
+
+# Process definitions
+if(MINGW)
+    add_definitions(-DMINGW)
+elseif(MSVC)
+    add_definitions(-DVISUAL_STUDIO)
+endif()

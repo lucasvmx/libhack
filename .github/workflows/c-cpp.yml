@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Build
 
 on:
   push:
@@ -10,10 +10,15 @@ jobs:
   build:
 
     runs-on: windows-latest
-
+  
     steps:
     - uses: actions/checkout@v2
-    - name: Build Examples
-      run: make examples
-    - name: Build Library
+    - name: Build library
       run: make dll
+      working-directory: src/
+    - name: Build examples
+      run: make examples
+      working-directory: src/
+    - name: Cleanup
+      run: make clean
+      working-directory: src

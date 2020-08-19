@@ -1,7 +1,7 @@
 /**
- * @file process_handler.h
+ * @file process.h
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief 
+ * @brief Functions used to operate with processes
  * @version 0.1
  * @date 2020-07-18
  * 
@@ -83,5 +83,13 @@ LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD a
  * @return DWORD Zero on error or base address of process
  */
 LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle);
+
+/**
+ * @brief Determines if the previously opened process still up and running
+ * 
+ * @param handle Handle to libhack
+ * @return bool true if process is running
+ */
+LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle);
 
 #endif // PROCESS_H
