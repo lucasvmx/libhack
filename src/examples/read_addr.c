@@ -53,7 +53,7 @@ int main()
     */
     value = libhack_read_int_from_addr(hack, baseAddr + 0x4c);
 
-    printf("Value readed from address %#x: %d\n", value);
+    printf("Value readed from address %#x: %d\n", baseAddr + 0x4c, value);
 
     /*
         Cleanup resources used by library
