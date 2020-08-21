@@ -31,7 +31,7 @@
 [license-url]: https://img.shields.io/github/license/lucas-engen/libhack?style=plastic&color=196F3D
 [contributors-url]: https://img.shields.io/github/contributors/lucas-engen/libhack?color=b266ff&style=plastic
 [release-url]: https://img.shields.io/github/v/release/lucas-engen/libhack?color=ff9933&style=plastic
-[pull-requests-url]: https://img.shields.io/github/issues-pr/lucas-engen/libhack?color=0000ff
+[pull-requests-url]: https://img.shields.io/github/issues-pr/lucas-engen/libhack?color=0000ff&style=plastic
 [code-quality-url]: https://img.shields.io/codefactor/grade/github/lucas-engen/libhack?style=plastic
 [issues-closed-url]: https://img.shields.io/github/issues-closed-raw/lucas-engen/libhack?color=bb0000&style=plastic
 
