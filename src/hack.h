@@ -17,7 +17,11 @@
 #include <windows.h>
 
 #ifndef LIBHACK_API
+#ifdef DLL_EXPORT
 #define LIBHACK_API __declspec(dllexport)
+#else
+#define LIBHACK_API __declspec(dllimport)
+#endif
 #endif
 
 #ifdef __cplusplus

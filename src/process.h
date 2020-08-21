@@ -12,6 +12,10 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "hack.h"
 
 /**
@@ -91,5 +95,9 @@ LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle);
  * @return bool true if process is running
  */
 LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // PROCESS_H

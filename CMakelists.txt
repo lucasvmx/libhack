@@ -15,10 +15,13 @@ add_library(hack SHARED
 
 # configure target properties
 set_target_properties(hack
-    PROPERTIES OUTPUT_NAME hack
+    PROPERTIES ARCHIVE_OUTPUT_NAME hack
 )
 
-# Process definitions
+# configure dll exporting
+add_definitions(-DDLL_EXPORT)
+
+# setup flags by compiler
 if(MINGW)
     add_definitions(-DMINGW)
 elseif(MSVC)
