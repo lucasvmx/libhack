@@ -22,9 +22,11 @@ jobs:
 
     - name: configure cmake for examples
       run: |
+        ls
         cmake -G "MinGW Makefiles" -B build
-        cp ../../build/*.dll .
+        cp ../../build/*.dll libhack.dll
         cp ../../build/*.a libhack.a
+        ls
       working-directory: src/examples
 
     - name: build examples
