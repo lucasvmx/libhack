@@ -25,15 +25,15 @@
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[total-downloads-url]: https://img.shields.io/github/downloads/lucas-engen/libhack/total?color=e0e0e0&style=plastic
+[total-downloads-url]: https://img.shields.io/github/downloads/lucas-engen/libhack/total?color=blue&style=plastic
 [build-status-url]: https://img.shields.io/github/workflow/status/lucas-engen/libhack/Build?style=plastic
-[issues-open-url]: https://img.shields.io/github/issues/lucas-engen/libhack?color=ff007f&style=plastic
-[license-url]: https://img.shields.io/github/license/lucas-engen/libhack?style=plastic&color=ccff99
+[issues-open-url]: https://img.shields.io/github/issues/lucas-engen/libhack?color=green&style=plastic
+[license-url]: https://img.shields.io/github/license/lucas-engen/libhack?style=plastic&color=196F3D
 [contributors-url]: https://img.shields.io/github/contributors/lucas-engen/libhack?color=b266ff&style=plastic
 [release-url]: https://img.shields.io/github/v/release/lucas-engen/libhack?color=ff9933&style=plastic
 [pull-requests-url]: https://img.shields.io/github/issues-pr/lucas-engen/libhack?color=0000ff
-[code-quality-url]: https://img.shields.io/codefactor/grade/github/lucas-engen/libhack?color=00ffff&style=plastic
-[issues-closed-url]: https://img.shields.io/github/issues-closed-raw/lucas-engen/libhack?color=ffFF66&style=plastic
+[code-quality-url]: https://img.shields.io/codefactor/grade/github/lucas-engen/libhack?style=plastic
+[issues-closed-url]: https://img.shields.io/github/issues-closed-raw/lucas-engen/libhack?color=bb0000&style=plastic
 
 ![build][build-status-url]
 ![download][total-downloads-url]
