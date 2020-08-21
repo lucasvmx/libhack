@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.10)
+
+# Executable settings
+add_executable(pid pid.c)
+add_executable(read_addr read_addr.c)
+add_executable(write_addr write_addr.c)
+
+# Add link directories
+link_directories(${CMAKE_SOURCE_DIR})
+
+# Add link libraries
+find_library(LIBHACK hack ${CMAKE_SOURCE_DIR})
+target_link_libraries(pid ${LIBHACK})
+target_link_libraries(read_addr ${LIBHACK})
+target_link_libraries(write_addr ${LIBHACK})
