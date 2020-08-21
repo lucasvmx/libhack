@@ -28,5 +28,5 @@ jobs:
       working-directory: src/examples
 
     - name: build examples
-      run: make examples
+      run: make
       working-directory: src/examples/build
