@@ -13,12 +13,17 @@ jobs:
   
     steps:
     - uses: actions/checkout@v2
-    - name: Build library
-      run: make dll
-      working-directory: src/
-    - name: Build examples
+    - name: configure cmake for library
+      run: cmake -G "MinGW Makefiles" -B build
+
+    - name: build library
+      run: make
+      working-directory: build
+
+    - name: configure cmake for examples
+      run: cmake -G "MinGW Makefiles" -B build
+      working-directory: src/examples
+
+    - name: build examples
       run: make examples
-      working-directory: src/
-    - name: Cleanup
-      run: make clean
-      working-directory: src
+      working-directory: src/examples/build
