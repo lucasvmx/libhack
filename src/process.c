@@ -122,7 +122,7 @@ int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr)
 	}
 
 	/* Read memory at the specified address */
-	if(!ReadProcessMemory(handle->hProcess, (void*)addr, &value, sizeof(int), &readed)) {
+	if(!ReadProcessMemory(handle->hProcess, (const void*)addr, (void*)&value, sizeof(int), &readed)) {
 		libhack_debug("Failed to read memory: %lu\n", GetLastError());
 		return -1;
 	}
@@ -149,7 +149,7 @@ int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int
 	}
 
 	/* Write memory at the specified address */
-	if(!WriteProcessMemory(handle->hProcess, (void*)addr, &value, sizeof(int), &written)) {
+	if(!WriteProcessMemory(handle->hProcess, (void*)addr, (const void*)&value, sizeof(int), &written)) {
 		libhack_debug("Failed to write memory: %lu\n", GetLastError());
 		return 0;
 	}
@@ -219,7 +219,7 @@ LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD 
 	}
 
 	/* Read memory at the specified address */
-	if(!ReadProcessMemory(handle->hProcess, (void*)addr, &value, sizeof(DWORD), &readed)) {
+	if(!ReadProcessMemory(handle->hProcess, (const void*)addr, (void*)&value, sizeof(DWORD), &readed)) {
 		libhack_debug("Failed to read memory: %lu\n", GetLastError());
 		return -1;
 	}
@@ -246,7 +246,7 @@ LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD a
 	}
 
 	/* Write memory at the specified address */
-	if(!WriteProcessMemory(handle->hProcess, (void*)addr, &value, sizeof(int), &written)) {
+	if(!WriteProcessMemory(handle->hProcess, (void*)addr, (const void*)&value, sizeof(int), &written)) {
 		libhack_debug("Failed to write memory: %lu\n", GetLastError());
 		return 0;
 	}
