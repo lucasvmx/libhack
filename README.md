@@ -95,9 +95,9 @@ This is a simple and easy to use memory hacking library. It was created to make 
 
 ### Built With
 
-* [GCC]()
-* [CMake]()
-* []()
+* [GCC](https://gcc.gnu.org/)
+* [CMake](https://cmake.org/)
+* [Microsoft Visual Studio](https://visualstudio.microsoft.com/pt-br/)
 
 
 
