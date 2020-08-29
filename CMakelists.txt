@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 # set the project name
 project(libhack)
 
-# add source files
+# add source files to build shared library
 add_library(hack SHARED 
     src/main.c 
     src/process.c 
@@ -24,6 +24,9 @@ add_definitions(-DDLL_EXPORT)
 # setup flags by compiler
 if(MINGW)
     add_definitions(-DMINGW)
+	
+	# configure for 32 bit building
+    #set(CMAKE_C_FLAGS "-m32")
 elseif(MSVC)
     add_definitions(-DVISUAL_STUDIO)
 endif()
