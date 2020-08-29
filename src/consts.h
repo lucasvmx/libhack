@@ -31,7 +31,7 @@
  * @brief Versão do programa (patch)
  * 
  */
-#define PATCH   0
+#define PATCH   1
 
 /**
  * @brief Tamanho máximo do número de versão
