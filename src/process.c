@@ -12,7 +12,45 @@
 #include <windows.h>
 #include <psapi.h>
 #include <tlhelp32.h>
+#include <assert.h>
+#ifndef bool
+#include <stdbool.h>
+#endif
 #include "process.h"
+
+/**
+ * @brief Checking types
+ * 
+ */
+enum CHECK_TYPES {
+	WRITE_CHECK,
+	READ_CHECK
+};
+
+/**
+ * @brief Checks if the specified handle can be used to specified 'type' access
+ * 
+ * @param handle Handle to libhack
+ * @param type Check to be performed
+ * @return true On success
+ * @return false On error
+ */
+static bool libhack_perform_check(struct libhack_handle *handle, enum CHECK_TYPES type)
+{
+	switch(type)
+	{
+		case WRITE_CHECK:
+		case READ_CHECK:
+
+			// Checks if the process can be opened for read or write
+			if((!handle) || !(handle->bProcessIsOpen))
+				return false;
+
+		break;
+	}
+
+	return true;
+}
 
 BOOL libhack_open_process(struct libhack_handle *handle)
 {
@@ -62,7 +100,7 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 		
 		return handle->pid;
 	}
-	
+
 	/* Allocate memory */
 	entry = (PROCESSENTRY32*)malloc(sizeof(PROCESSENTRY32));
 	if(!entry)
@@ -108,16 +146,8 @@ int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr)
 	SIZE_T readed;
 
 	/* Validate handle */
-	if(!handle)
-	{
-		libhack_debug("Invalid handle to libhack\n");
-		return -1;
-	}
-
-	/* Check if the process is already open */
-	if(!handle->bProcessIsOpen)
-	{
-		libhack_debug("Process must be opened first\n");
+	if(!libhack_perform_check(handle, READ_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
 		return -1;
 	}
 
@@ -127,7 +157,7 @@ int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr)
 		return -1;
 	}
 
-	return value;
+	return readed ? value : -1;
 }
 
 int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value)
@@ -135,23 +165,15 @@ int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int
 	SIZE_T written = 0;
 
 	/* Validate parameters */
-	if(!handle)
-	{
-		libhack_debug("Invalid handle to libhack\n");
-		return 0;
-	}
-
-	/* Check if the process is already open */
-	if(!handle->bProcessIsOpen)
-	{
-		libhack_debug("Process must be opened first\n");
-		return 0;
+	if(!libhack_perform_check(handle, WRITE_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		return -1;
 	}
 
 	/* Write memory at the specified address */
 	if(!WriteProcessMemory(handle->hProcess, (void*)addr, (const void*)&value, sizeof(int), &written)) {
 		libhack_debug("Failed to write memory: %lu\n", GetLastError());
-		return 0;
+		return -1;
 	}
 
 	return written ? value : 0;
@@ -164,19 +186,11 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
 	char procName[BUFLEN];
 
 	/* Validate parameters */
-	if(!handle)
-	{
-		libhack_debug("Invalid handle to libhack\n");
-		return 0;
+	if(!libhack_perform_check(handle, READ_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		return -1;
 	}
 
-	/* Check if the process is already open */
-	if(!handle->bProcessIsOpen)
-	{
-		libhack_debug("Process must be opened first\n");
-		return 0;
-	}
-	
 	/* Initialize memory */
     RtlSecureZeroMemory(procName, sizeof(procName));
 
@@ -189,6 +203,8 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
     {
         K32GetModuleBaseNameA(handle->hProcess, module, procName, BUFLEN);
 
+		libhack_debug("Name: %s (%s)\n", procName, handle->process_name);
+
         if(strnicmp(procName, handle->process_name, strlen(handle->process_name)) == 0)
         {
             handle->hModule = module;
@@ -196,6 +212,8 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
         }
     }
 	
+	libhack_debug("we failed to get process base address: %lu\n", GetLastError());
+
 	return 0;
 }
 
@@ -205,16 +223,8 @@ LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD 
 	SIZE_T readed;
 
 	/* Validate handle */
-	if(!handle)
-	{
-		libhack_debug("Invalid handle to libhack\n");
-		return -1;
-	}
-
-	/* Check if the process is already open */
-	if(!handle->bProcessIsOpen)
-	{
-		libhack_debug("Process must be opened first\n");
+	if(!libhack_perform_check(handle, READ_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
 		return -1;
 	}
 
@@ -224,7 +234,7 @@ LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD 
 		return -1;
 	}
 
-	return value;
+	return readed ? value : -1;
 }
 
 LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD addr, int value)
@@ -232,23 +242,15 @@ LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD a
 	SIZE_T written = 0;
 
 	/* Validate parameters */
-	if(!handle)
-	{
-		libhack_debug("Invalid handle to libhack\n");
-		return 0;
-	}
-
-	/* Check if the process is already open */
-	if(!handle->bProcessIsOpen)
-	{
-		libhack_debug("Process must be opened first\n");
-		return 0;
+	if(!libhack_perform_check(handle, READ_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		return -1;
 	}
 
 	/* Write memory at the specified address */
 	if(!WriteProcessMemory(handle->hProcess, (void*)addr, (const void*)&value, sizeof(int), &written)) {
 		libhack_debug("Failed to write memory: %lu\n", GetLastError());
-		return 0;
+		return -1;
 	}
 
 	return written ? value : 0;
@@ -261,19 +263,11 @@ LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle)
 	char procName[BUFLEN];
 
 	/* Validate parameters */
-	if(!handle)
-	{
-		libhack_debug("Invalid handle to libhack\n");
-		return 0;
+	if(!libhack_perform_check(handle, READ_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		return -1;
 	}
 
-	/* Checks if the process is open */
-	if(!handle->bProcessIsOpen)
-	{
-		libhack_debug("Process must be opened first\n");
-		return 0;
-	}
-	
 	/* Initialize memory */
     RtlSecureZeroMemory(procName, sizeof(procName));
 
@@ -301,15 +295,10 @@ LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle)
 	DWORD state;
 
 	// Validate parameters
-	if(!handle)
-	{
-		libhack_debug("Invalid handle to libhack\n");
+	if(!libhack_perform_check(handle, READ_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
 		return FALSE;
 	}
-
-	// Check the flag
-	if(!handle->bProcessIsOpen)
-		return FALSE;
 
 	// Try to get exit code of the process if any
 	if(!GetExitCodeProcess(handle->hProcess, &state))
@@ -319,4 +308,44 @@ LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle)
 	}
 	
 	return state == STILL_ACTIVE ? TRUE : FALSE;
+}
+
+LIBHACK_API int libhack_write_string_to_addr(struct libhack_handle *handle, DWORD addr, const char *string, size_t string_len)
+{
+	SIZE_T written = 0;
+
+	/* Validate parameters */
+	if(!libhack_perform_check(handle, WRITE_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		return -1;
+	}
+
+	libhack_debug("Address: %#llx\n", addr);
+
+	/* Write memory at the specified address */
+	if(!WriteProcessMemory(handle->hProcess, (void*)addr, string, string_len, &written)) {
+		libhack_debug("Failed to write memory: %lu\n", GetLastError());
+		return -1;
+	}
+
+	return written ? (int)written : 0;	
+}
+
+int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len)
+{
+	SIZE_T written = 0;
+
+	/* Validate parameters */
+	if(!libhack_perform_check(handle, WRITE_CHECK)) {
+		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		return -1;
+	}
+
+	/* Write memory at the specified address */
+	if(!WriteProcessMemory(handle->hProcess, (void*)addr, string, string_len, &written)) {
+		libhack_debug("Failed to write memory: %lu\n", GetLastError());
+		return -1;
+	}
+
+	return written ? (int)written : 0;
 }

@@ -35,6 +35,10 @@ struct libhack_handle *libhack_init(const char *process_name)
 {
 	struct libhack_handle *lh = NULL;
 	
+	/* Validate parameters */
+	if(!process_name)
+		return NULL;
+
 	/* Allocate memory to store handle data */
 	lh = (struct libhack_handle*)malloc(sizeof(struct libhack_handle));
 	if(!lh)
@@ -42,8 +46,8 @@ struct libhack_handle *libhack_init(const char *process_name)
 		libhack_debug("Failed to allocate memory\n");
 		return NULL;
 	}
-		
-	/* Initialize memory with zeros */
+
+	// Initialize memory
 	RtlSecureZeroMemory(lh->process_name, sizeof(lh->process_name));
 
 	/* Copy process name to internal variable */
@@ -55,6 +59,8 @@ struct libhack_handle *libhack_init(const char *process_name)
 	lh->hModule = NULL;
 	lh->bProcessIsOpen = FALSE;
 	
+	libhack_debug("initialized libhack version %s\n", libhack_getversion());
+
 	return lh;
 }
 

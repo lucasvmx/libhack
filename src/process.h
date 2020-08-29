@@ -22,7 +22,7 @@ extern "C" {
  * @brief Opens the process specified when initializing library
  * 
  * @param handle Handle to libhack previously opened by libhack_init
- * @return BOOL true on success false otherwise 
+ * @return BOOL TRUE on success FALSE otherwise 
  */
 LIBHACK_API BOOL libhack_open_process(struct libhack_handle *handle);
 
@@ -35,40 +35,22 @@ LIBHACK_API BOOL libhack_open_process(struct libhack_handle *handle);
 LIBHACK_API DWORD libhack_get_process_id(struct libhack_handle *handle);
 
 /**
- * @brief Reads a int from the specified 64bit address
- * 
- * @param handle Handle to libhack
- * @param addr Address to be readed
- * @return int Value readed from address
- */
-LIBHACK_API int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr);
-
-/**
- * @brief Writes a int to the specified 64bit address
- * 
- * @param handle Handle to libhack
- * @param addr Address to be written
- * @param value Value to be written on address
- * @return int Returns <= 0 on error and > 0 on success
- */
-LIBHACK_API int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value);
-
-/**
- * @brief Gets the process base address in 64bit mode
- * 
- * @param handle Handle to libhack
- * @return DWORD64 Base address of process
- */
-LIBHACK_API DWORD64 libhack_get_base_addr64(struct libhack_handle *handle);
-
-/**
  * @brief Reads a int from the specified address
  * 
  * @param handle Handle to libhack
  * @param addr Address to be readed
- * @return int Value readed from address
+ * @return int Value readed from address or -1 on error
  */
 LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr);
+
+/**
+ * @brief Reads a int from the specified 64bit address
+ * 
+ * @param handle Handle to libhack
+ * @param addr Address to be readed
+ * @return int Value readed from address or -1 on error
+ */
+LIBHACK_API int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr);
 
 /**
  * @brief Writes a int to the specified address
@@ -76,9 +58,41 @@ LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD 
  * @param handle Handle to libhack
  * @param addr Address to be written
  * @param value Value to be written on address
- * @return int Returns <= 0 on error and > 0 on success
+ * @return int Number of bytes written
  */
 LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD addr, int value);
+
+/**
+ * @brief Writes a int to the specified 64bit address
+ * 
+ * @param handle Handle to libhack
+ * @param addr Address to be written
+ * @param value Value to be written on address
+ * @return int Number of bytes written
+ */
+LIBHACK_API int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value);
+
+/**
+ * @brief Writes a string to the specified address
+ * 
+ * @param handle Handle to libhack
+ * @param addr Address to be written
+ * @param string String to be written on address
+ * @param string_len String length
+ * @return LIBHACK_API int Number of bytes written
+ */
+LIBHACK_API int libhack_write_string_to_addr(struct libhack_handle *handle, DWORD addr, const char *string, size_t string_len);
+
+/**
+ * @brief Writes a string to the specified address
+ * 
+ * @param handle Handle to libhack
+ * @param addr Address to be written
+ * @param string String to be written on address
+ * @param string_len String length
+ * @return LIBHACK_API int Number of bytes written
+ */
+LIBHACK_API int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len);
 
 /**
  * @brief Gets the process base address
@@ -89,10 +103,18 @@ LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD a
 LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle);
 
 /**
+ * @brief Gets the process base address in 64bit mode
+ * 
+ * @param handle Handle to libhack
+ * @return DWORD64 Base address of process
+ */
+LIBHACK_API DWORD64 libhack_get_base_addr64(struct libhack_handle *handle);
+
+/**
  * @brief Determines if the previously opened process still up and running
  * 
  * @param handle Handle to libhack
- * @return bool true if process is running
+ * @return bool TRUE if process is running FALSE otherwise
  */
 LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle);
 

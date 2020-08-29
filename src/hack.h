@@ -38,8 +38,8 @@ extern "C" {
  * @brief Shows a message if the program is being debugged
  * 
  */
-#if !defined(DEBUG) || !defined(NDEBUG)
-#define libhack_debug(...) fprintf(stdout, __VA_ARGS__)
+#if defined(DEBUG) || !defined(NDEBUG)
+#define libhack_debug(...) fprintf(stdout, "[libhack] " __VA_ARGS__)
 #else
 #ifdef _MSC_VER
 #define libhack_debug(...)
@@ -102,7 +102,7 @@ LIBHACK_API const char *libhack_getversion();
  * @brief Initialize libhack
  * 
  * @param process_name Name of process to be accessed by library
- * @return struct libhack_handle* Handle to libhack
+ * @return struct libhack_handle* Handle to libhack or NULL on error
  */
 LIBHACK_API struct libhack_handle *libhack_init(const char *process_name);
 
