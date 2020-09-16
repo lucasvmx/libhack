@@ -13,6 +13,7 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <assert.h>
+#include <io.h>
 #ifndef bool
 #include <stdbool.h>
 #endif
@@ -54,9 +55,23 @@ static bool libhack_perform_check(struct libhack_handle *handle, enum CHECK_TYPE
 
 BOOL libhack_open_process(struct libhack_handle *handle)
 {
+	char v1[8], v2[8];
+
 	if(!handle)
 		return FALSE;
 
+	// We need to check if loaded version is compatible with .dll version
+	memset(v1, 0, sizeof(v1));
+	memset(v2, 0, sizeof(v2));
+
+	snprintf(v1, arraySize(v1), "%s", libhack_getversion());
+	snprintf(v2, arraySize(v2), "%d.%d.%d", MAJOR, MINOR, PATCH);
+	
+	if(strncmp(v1, v2, strlen(v1)) != 0) {
+		libhack_debug("libhack version mismatch: %s != %s\n", v1, v2);
+		return FALSE;
+	}
+	
 	/* Check if the process is already open */
 	if(!handle->bProcessIsOpen)
 	{
@@ -348,4 +363,66 @@ int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, 
 	}
 
 	return written ? (int)written : 0;
+}
+
+LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *dll_path)
+{
+	void *pDllPath = NULL;
+	DWORD threadId;
+	HANDLE hRemoteThread = NULL;
+	DWORD waitStatus;
+	HANDLE hKernel32 = NULL;
+	size_t dll_path_len = 0;
+
+	libhack_assert_or_return(handle, FALSE);
+	libhack_assert_or_return(dll_path, FALSE);
+	
+	if(!handle->bProcessIsOpen) {
+		libhack_debug("you need to call libhack_open_process() before trying to inject dll on it\n");
+		return FALSE;
+	}
+
+	if(!(access(dll_path, 0) != -1)) {
+		libhack_debug("%s could not be found. Don't forget to specify a full path to dll\n", dll_path);
+		return FALSE;
+	}
+
+	hKernel32 = LoadLibraryA("kernel32.dll");
+	libhack_assert_or_return(hKernel32, FALSE);
+
+	dll_path_len = strlen(dll_path);
+
+	// Allocate memory to store full path of dll to be loaded into target process memory
+	pDllPath = VirtualAllocEx(handle->hProcess, NULL, dll_path_len, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	if(!pDllPath) {
+		libhack_debug("virtual alloc failed: %lu\n", GetLastError());
+		return FALSE;
+	}
+
+	if(!WriteProcessMemory(handle->hProcess, pDllPath, dll_path, dll_path_len, NULL)) {
+		libhack_debug("failed to write process memory: %lu\n", GetLastError());
+		VirtualFreeEx(handle->hProcess, pDllPath, dll_path_len, MEM_RELEASE);
+		return FALSE;
+	}
+
+	// Creates the remote thread on target process that will load library
+	hRemoteThread = CreateRemoteThread(handle->hProcess, NULL, 0, 
+	(LPTHREAD_START_ROUTINE)GetProcAddress(hKernel32, "LoadLibraryA"),
+	pDllPath, 0, &threadId);
+
+	// Checks if dll injection was completed
+	if(!hRemoteThread) {
+		libhack_debug("failed to inject dll: %lu\n", GetLastError());
+		return FALSE;
+	}
+
+	// Once library is loaded we can release all resources
+	if(!VirtualFreeEx(handle->hProcess, pDllPath, dll_path_len, MEM_RELEASE)) {
+		libhack_debug("warn: dll injection was successfull but we failed to free virtual memory: %lu\n", GetLastError());
+	}
+
+	libhack_assert_or_warn(CloseHandle(hRemoteThread));
+
+	// TRUE because dll was injected on target process
+	return TRUE;
 }
