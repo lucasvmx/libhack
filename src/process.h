@@ -118,6 +118,15 @@ LIBHACK_API DWORD64 libhack_get_base_addr64(struct libhack_handle *handle);
  */
 LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle);
 
+/**
+ * @brief Injects a DLL into opened process
+ * 
+ * @param handle Handle to libhack returned by libhack_open()
+ * @param dll_path Full path of dll to be injected
+ * @return BOOL TRUE on success FALSE on errors
+ */
+LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *dll_path);
+
 #ifdef __cplusplus
 }
 #endif

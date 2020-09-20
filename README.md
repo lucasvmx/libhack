@@ -77,7 +77,8 @@
   * [Built With](#built-with)
 * [Getting Started](#getting-started)
   * [Prerequisites](#prerequisites)
-  * [Installation](#installation)
+  * [Building](#building)
+    * [Building Examples](#building-examples)
 * [Usage](#usage)
 * [Roadmap](#roadmap)
 * [Contributing](#contributing)
@@ -117,8 +118,9 @@ This is an example of how to list things you need to use the software and how to
 * CMake
   - https://cmake.org/download/
 
-### Installation
- 
+### Building
+<br>
+
 1. Clone the libhack
 ```sh
 git clone https://github.com/lucas-engen/libhack.git
@@ -131,8 +133,9 @@ cd libhack
 
 3. Generate Makefiles
 ```sh
-cmake -G <generator name> -B build
+cmake -G <generator name> -B build .
 ```
+
 * Note: type `cmake --help` to list generators available in your system
 
 4. Go to build directory
@@ -144,6 +147,30 @@ cd build
 ```sh
 make
 ```
+
+### Building examples
+<br>
+
+1. Go to examples folder
+```sh
+cd src/examples
+```
+
+2. Generate makefiles
+```sh
+cmake -G <generator name> -B build .
+```
+
+3. Go to build directory
+```sh
+cd build
+```
+
+4. Build examples
+```sh
+make
+```
+<br>
 
 <!-- USAGE EXAMPLES -->
 ## Usage
@@ -185,7 +212,9 @@ _For more examples, please refer to examples below_
 - [Reading a memory address](src/examples/read_addr.c)
 - [Writing to a memory address](src/examples/write_addr.c)
 - [Getting PID from a process](src/examples/pid.c)
-
+- [Injecting DLL into another process](src/examples/dll_inject.c)
+  - [Dll Source Code](src/examples/hello.c)
+ 
 <!-- ROADMAP -->
 ## Roadmap
 
