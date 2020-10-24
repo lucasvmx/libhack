@@ -10,7 +10,7 @@
  */
 
 #include <iostream>
-#include "../hack.h"
+#include "../init.h"
 
 using namespace std;
 

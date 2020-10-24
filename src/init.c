@@ -13,7 +13,7 @@
 #include <tlhelp32.h>
 #include <psapi.h>
 #include <string.h>
-#include "hack.h"
+#include "init.h"
 #include "autorevision.h"
 
 /**

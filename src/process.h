@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#include "hack.h"
+#include "init.h"
 
 /**
  * @brief Opens the process specified when initializing library
