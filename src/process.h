@@ -12,6 +12,10 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
+#ifdef UNICODE
+#undef UNICODE
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -126,6 +130,24 @@ LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle);
  * @return BOOL TRUE on success FALSE on errors
  */
 LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *dll_path);
+
+/**
+ * @brief Gets the address of a module loaded by process
+ * 
+ * @param handle Handle to libhack
+ * @param module_name Name of the submodule
+ * @return LIBHACK_API DWORD the address of submodule
+ */
+LIBHACK_API DWORD libhack_getsubmodule_addr(struct libhack_handle *handle, const char *module_name);
+
+/**
+ * @brief Gets the address of a module loaded by process
+ * 
+ * @param handle Handle to libhack
+ * @param module_name Name of the submodule
+ * @return LIBHACK_API DWORD64 the address of submodule
+ */
+LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, const char *module_name);
 
 #ifdef __cplusplus
 }

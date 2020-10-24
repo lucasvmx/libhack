@@ -1,7 +1,7 @@
 /**
  * @file consts.h
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief 
+ * @brief Constants used belong the program
  * @version 0.1
  * @date 2020-08-14
  * 
@@ -10,31 +10,13 @@
  */
 
 /**
- * @brief Tamanho do buffer interno
+ * @brief Internal buffer size
  * 
  */
 #define BUFLEN 256
 
 /**
- * @brief Versão do programa (major)
+ * @brief Maximum size allocated to store version data
  * 
  */
-#define MAJOR   0
-
-/**
- * @brief Versão do programa (minor)
- * 
- */
-#define MINOR   2
-
-/**
- * @brief Versão do programa (patch)
- * 
- */
-#define PATCH   1
-
-/**
- * @brief Tamanho máximo do número de versão
- * 
- */
-#define VERSION_NUMBER_LEN  8
+#define VERSION_NUMBER_LEN  16

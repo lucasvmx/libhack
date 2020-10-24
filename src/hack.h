@@ -116,6 +116,20 @@ struct libhack_handle
 LIBHACK_API const char *libhack_getversion();
 
 /**
+ * @brief Gets the commit UUID
+ * 
+ * @return LIBHACK_API const* UUID corresponding to commit
+ */
+LIBHACK_API const char *libhack_getuuid();
+
+/**
+ * @brief Gets the program build date on UTC
+ * 
+ * @return LIBHACK_API const* string containing build date
+ */
+LIBHACK_API const char *libhack_get_utc_build_date();
+
+/**
  * @brief Initialize libhack
  * 
  * @param process_name Name of process to be accessed by library
