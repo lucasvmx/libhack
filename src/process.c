@@ -1,11 +1,11 @@
 /**
  * @file process.c
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief Operações com processos
+ * @brief Functions used to operate with processes
  * @version 0.1
- * @date 2019-08-10
+ * @date 2020-09-21
  * 
- * @copyright Copyright (c) 2019 Lucas Vieira
+ * @copyright Copyright (c) 2020
  * 
  */
 
@@ -53,25 +53,32 @@ static bool libhack_perform_check(struct libhack_handle *handle, enum CHECK_TYPE
 	return true;
 }
 
+/**
+ * @brief Gets the number of modules loaded by specified process
+ * 
+ * @param handle handle to libhack
+ * @param b64bit TRUE if the process is 64 bit
+ * @return long Number of modules loaded
+ */
+static long libhack_get_modules_count(struct libhack_handle *handle, BOOL b64bit)
+{
+	HMODULE module;
+	DWORD needed;
+	BOOL status;
+	DWORD filter = b64bit ? LIST_MODULES_64BIT : LIST_MODULES_32BIT;
+
+	status = K32EnumProcessModulesEx(handle->hProcess, &module, 0, &needed, filter);
+
+	libhack_assert_or_return(status, -1);
+
+	return (long)needed;
+}
+
 BOOL libhack_open_process(struct libhack_handle *handle)
 {
-	char v1[8], v2[8];
-
 	if(!handle)
 		return FALSE;
 
-	// We need to check if loaded version is compatible with .dll version
-	memset(v1, 0, sizeof(v1));
-	memset(v2, 0, sizeof(v2));
-
-	snprintf(v1, arraySize(v1), "%s", libhack_getversion());
-	snprintf(v2, arraySize(v2), "%d.%d.%d", MAJOR, MINOR, PATCH);
-	
-	if(strncmp(v1, v2, strlen(v1)) != 0) {
-		libhack_debug("libhack version mismatch: %s != %s\n", v1, v2);
-		return FALSE;
-	}
-	
 	/* Check if the process is already open */
 	if(!handle->bProcessIsOpen)
 	{
@@ -151,6 +158,8 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 
 	/* Close process handle */
 	CloseHandle(hSnapshot);
+
+	handle->pid = pid;
 
 	return pid;
 }
@@ -425,4 +434,76 @@ LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *d
 
 	// TRUE because dll was injected on target process
 	return TRUE;
+}
+
+LIBHACK_API DWORD libhack_getsubmodule_addr(struct libhack_handle *handle, const char *module_name)
+{
+	char basename[MAX_PATH];
+	DWORD addr = 0;
+
+	// Parameter validation
+	libhack_assert_or_return(handle, 0);
+	libhack_assert_or_return(handle->bProcessIsOpen, 0);
+
+	// Check how many modules we have
+	long count = libhack_get_modules_count(handle, FALSE);
+	libhack_assert_or_return(count > 0, 0);
+
+	HMODULE *modules = (HMODULE*)malloc(sizeof(HMODULE) * count);
+	DWORD needed = 0;
+	libhack_assert_or_return(modules, 0);
+
+	if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, LIST_MODULES_32BIT))
+	{
+		for(long i = 0; i < count; i++) {
+			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, sizeof(basename))) {
+				char *name = strlwr(basename);
+
+				if(strncmp(name, module_name, strlen(module_name)) == 0) {
+					addr = (DWORD)modules[i];
+					break;
+				}
+			}
+		}
+	}
+
+	free(modules);
+
+	return addr;
+}
+
+LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, const char *module_name)
+{
+	char basename[MAX_PATH];
+	DWORD64 addr = 0;
+
+	// Parameter validation
+	libhack_assert_or_return(handle, 0);
+	libhack_assert_or_return(handle->bProcessIsOpen, 0);
+
+	// Check how many modules we have
+	long count = libhack_get_modules_count(handle, TRUE);
+	libhack_assert_or_return(count > 0, 0);
+
+	HMODULE *modules = (HMODULE*)malloc(sizeof(HMODULE) * count);
+	DWORD needed = 0;
+	libhack_assert_or_return(modules, 0);
+
+	if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, LIST_MODULES_64BIT))
+	{
+		for(long i = 0; i < count; i++) {
+			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, sizeof(basename))) {
+				char *name = strlwr(basename);
+
+				if(strncmp(name, module_name, strlen(module_name)) == 0) {
+					addr = (DWORD64)modules[i];
+					break;
+				}
+			}
+		}
+	}
+
+	free(modules);
+
+	return addr;	
 }

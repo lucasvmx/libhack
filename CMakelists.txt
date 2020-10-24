@@ -7,10 +7,10 @@ project(libhack)
 add_library(hack SHARED 
     src/main.c 
     src/process.c 
-    src/hack.c
+    src/init.c
     src/process.h
     src/consts.h
-    src/hack.h
+    src/init.h
 )
 
 # configure target properties

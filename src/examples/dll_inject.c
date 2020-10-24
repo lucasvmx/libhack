@@ -9,7 +9,7 @@
  * 
  */
 
-#include "../hack.h"
+#include "../init.h"
 #include "../process.h"
 
 int main()

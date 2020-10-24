@@ -1,7 +1,7 @@
 /**
  * @file main.c
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief 
+ * @brief Libhack dll injection features
  * @version 0.1
  * @date 2020-07-18
  * 
