@@ -30,3 +30,6 @@ if(MINGW)
 elseif(MSVC)
     add_definitions(-DVISUAL_STUDIO)
 endif()
+
+
+target_link_libraries(hack shlwapi)

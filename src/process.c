@@ -13,6 +13,7 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <assert.h>
+#include <shlwapi.h>
 #include <io.h>
 #ifndef bool
 #include <stdbool.h>
@@ -391,7 +392,7 @@ LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *d
 		return FALSE;
 	}
 
-	if(!(access(dll_path, 0) != -1)) {
+	if(!PathFileExistsA(dll_path)) {
 		libhack_debug("%s could not be found. Don't forget to specify a full path to dll\n", dll_path);
 		return FALSE;
 	}
