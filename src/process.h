@@ -21,14 +21,15 @@ extern "C" {
 #endif
 
 #include "init.h"
+#include <stdbool.h>
 
 /**
  * @brief Opens the process specified when initializing library
  * 
  * @param handle Handle to libhack previously opened by libhack_init
- * @return BOOL TRUE on success FALSE otherwise 
+ * @return bool true on success false otherwise 
  */
-LIBHACK_API BOOL libhack_open_process(struct libhack_handle *handle);
+LIBHACK_API bool libhack_open_process(struct libhack_handle *handle);
 
 /**
  * @brief Gets the process ID
@@ -118,18 +119,18 @@ LIBHACK_API DWORD64 libhack_get_base_addr64(struct libhack_handle *handle);
  * @brief Determines if the previously opened process still up and running
  * 
  * @param handle Handle to libhack
- * @return bool TRUE if process is running FALSE otherwise
+ * @return bool true if process is running false otherwise
  */
-LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle);
+LIBHACK_API bool libhack_process_is_running(struct libhack_handle *handle);
 
 /**
  * @brief Injects a DLL into opened process
  * 
  * @param handle Handle to libhack returned by libhack_open()
  * @param dll_path Full path of dll to be injected
- * @return BOOL TRUE on success FALSE on errors
+ * @return bool true on success false on errors
  */
-LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *dll_path);
+LIBHACK_API bool libhack_inject_dll(struct libhack_handle *handle, const char *dll_path);
 
 /**
  * @brief Gets the address of a module loaded by process
@@ -148,6 +149,15 @@ LIBHACK_API DWORD libhack_getsubmodule_addr(struct libhack_handle *handle, const
  * @return LIBHACK_API DWORD64 the address of submodule
  */
 LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, const char *module_name);
+
+/**
+ * @brief Checks if a process is a x64 process
+ * 
+ * @param handle Process handle (it must be opened first)
+ * @param errorCode Error code (will be 0 on success)
+ * @return LIBHACK_API bool true if process is a x64 process 
+ */
+LIBHACK_API bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *errorCode);
 
 #ifdef __cplusplus
 }
