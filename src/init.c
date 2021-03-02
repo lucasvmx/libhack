@@ -14,7 +14,8 @@
 #include <psapi.h>
 #include <string.h>
 #include "init.h"
-#include "autorevision.h"
+#include "logger.h"
+#include "../autorevision.h"
 
 /**
  * @brief Contains version number
@@ -22,11 +23,17 @@
  */
 static char version[VERSION_NUMBER_LEN];
 
-/**
- * @brief Gets library version 
- * 
- * @return const char* The lib version in format MAJOR.MINOR.PATCH build BUILD
- */
+LIBHACK_API const char *libhack_get_platform()
+{
+#if defined(__x86__)
+	return "32-bit";
+#elif defined(__x64__)
+	return "64-bit";
+#else
+	return "unknown";
+#endif
+}
+
 LIBHACK_API const char *libhack_getversion()
 {
 	RtlSecureZeroMemory(version, sizeof(version));
@@ -80,18 +87,12 @@ struct libhack_handle *libhack_init(const char *process_name)
 	}
 
 	// Initialize memory
-	RtlSecureZeroMemory(lh->process_name, sizeof(lh->process_name));
+	RtlSecureZeroMemory(lh, sizeof(struct libhack_handle));
 
 	/* Copy process name to internal variable */
 	strncpy(lh->process_name, process_name, sizeof(lh->process_name) / sizeof(lh->process_name[0]));
-
-	lh->pid = 0;
-	lh->base_addr = 0;
-	lh->hProcess = NULL;
-	lh->hModule = NULL;
-	lh->bProcessIsOpen = FALSE;
 	
-	libhack_debug("initialized libhack version %s\n", libhack_getversion());
+	libhack_debug("Initialized libhack version %s (%s)\n", libhack_getversion(), libhack_get_platform());
 
 	return lh;
 }

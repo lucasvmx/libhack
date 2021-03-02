@@ -13,6 +13,7 @@
 #define LIBHACK_H
 
 #include "consts.h"
+#include "platform.h"
 #include <stdio.h>
 #include <windows.h>
 
@@ -29,24 +30,10 @@ extern "C" {
 #endif
 
 /**
- * @brief Obtém o tamanho do vetor
+ * @brief Gets the number of elements in a vector
  * 
  */
 #define arraySize(x) (sizeof(x)/sizeof(x[0]))
-
-/**
- * @brief Shows a message if the program is being debugged
- * 
- */
-#if defined(DEBUG) || !defined(NDEBUG)
-#define libhack_debug(...) fprintf(stdout, "[libhack] " __VA_ARGS__)
-#else
-#ifdef _MSC_VER
-#define libhack_debug(...)
-#else
-#define libhack_debug(...) asm("nop\n\t")
-#endif
-#endif
 
 #define libhack_assert_or_exit(condition, exit_code) \
 	if(!condition) { \
@@ -81,13 +68,20 @@ struct libhack_handle
 	 * @brief Process identifier
 	 * 
 	 */
-	DWORD64 pid;
-
+	DWORD pid;
+#if defined(__x64__)
 	/**
 	 * @brief Process base address
 	 * 
 	 */
 	DWORD64 base_addr;
+#else
+	/**
+	 * @brief Process base address
+	 * 
+	 */
+	DWORD base_addr;
+#endif
 
 	/**
 	 * @brief Process handle
@@ -106,7 +100,20 @@ struct libhack_handle
 	 * 
 	 */
 	BOOL bProcessIsOpen;
+
+	/**
+	 * @brief Flag to check if process is a x64 process
+	 * 
+	 */
+	BOOL b64BitProcess;
 };
+
+/**
+ * @brief Gets the target platform of library
+ * 
+ * @return LIBHACK_API const* platform string
+ */
+LIBHACK_API const char *libhack_get_platform();
 
 /**
  * @brief Gets the program version and return a string
