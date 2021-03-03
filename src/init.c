@@ -59,8 +59,8 @@ static BOOL libhack_check_version()
 	const char *uuid = libhack_getuuid();
 
 	if(strncmp(uuid, VCS_UUID, strlen(VCS_UUID)) != 0) {
-		libhack_debug("version mismatch: %s build %d != %s\n", VCS_TAG, VCS_NUM, libhack_getversion());
-		libhack_debug("this version has been built on %s\n", VCS_DATE);
+		libhack_debug("Version mismatch: %s build %d != %s\n", VCS_TAG, VCS_NUM, libhack_getversion());
+		libhack_debug("This version has been built on %s\n", VCS_DATE);
 		return FALSE;
 	}
 
