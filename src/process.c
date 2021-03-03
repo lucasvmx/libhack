@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <shlwapi.h>
 #include <io.h>
+#include <dbghelp.h>
 #ifndef bool
 #include <stdbool.h>
 #endif
@@ -31,7 +32,7 @@ enum CHECK_TYPES {
 	READ_CHECK
 };
 
-typedef bool (*pIsWow64Process)(HANDLE, bool*);
+typedef PIMAGE_NT_HEADERS (IMAGEAPI *pImageNtHeader)(PVOID Base);
 
 /**
  * @brief Checks if the specified handle can be used to specified 'type' access
@@ -75,51 +76,6 @@ static long libhack_get_modules_count(struct libhack_handle *handle, bool b64bit
 	return (long)needed;
 }
 
-static bool Is64BitProcess(HANDLE hProcess, DWORD *error)
-{
-	pIsWow64Process fIsWow64Process;
-	bool bUsingEmulation = false;
-	bool flag;
-
-	// Load dll
-	HMODULE kernel32_dll = LoadLibraryA("kernel32.dll");
-	fIsWow64Process = (pIsWow64Process)GetProcAddress(kernel32_dll, "IsWow64Process");
-	if(!fIsWow64Process) {
-		libhack_debug("Function IsWow64Process is not supported in your system!");
-		if(error != NULL) {
-			*error = GetLastError();
-		}
-
-		return false;
-	}
-
-	// Call function
-	if(fIsWow64Process(hProcess, &flag)) {
-		if(flag) {
-			// Process is running using emulation
-			bUsingEmulation = true;
-		}
-	} else {
-		libhack_debug("Failed to call IsWow64Process");
-
-		// Set error code
-		if(error != NULL) {
-			*error = GetLastError();
-		}
-
-		// Free library
-		FreeLibrary(kernel32_dll);
-
-		return false;
-	}
-
-	// Set error code and cleanup resources
-	*error = ERROR_SUCCESS;
-	FreeLibrary(kernel32_dll);
-
-	return bUsingEmulation;
-}
-
 bool libhack_open_process(struct libhack_handle *handle)
 {
 	bool bIs64 = false;
@@ -144,11 +100,12 @@ bool libhack_open_process(struct libhack_handle *handle)
 			// Setup flags
 			handle->bProcessIsOpen = TRUE;
 			
-			bIs64 = Is64BitProcess(handle->hProcess, &err);
+			bIs64 = libhack_is64bit_process(handle, &err);
 			if(err == ERROR_SUCCESS) {
+				libhack_debug("Settings process flags");
 				handle->b64BitProcess = bIs64;
 			}
-		
+
 			return true;
 		}
 
@@ -277,7 +234,7 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
         return handle->base_addr;
 
     /* Enumerate process modules */
-    if(K32EnumProcessModulesEx(handle->hProcess, &module, sizeof(HMODULE), &needed, LIST_MODULES_ALL))
+    if(K32EnumProcessModulesEx(handle->hProcess, &module, sizeof(HMODULE), &needed, LIST_MODULES_64BIT))
     {
         K32GetModuleBaseNameA(handle->hProcess, module, procName, BUFLEN);
 
@@ -361,7 +318,7 @@ LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle)
         return handle->base_addr;
 
     /* Enumerate process modules */
-    if(K32EnumProcessModulesEx(handle->hProcess, &module, sizeof(HMODULE), &needed, LIST_MODULES_ALL))
+    if(K32EnumProcessModulesEx(handle->hProcess, &module, sizeof(HMODULE), &needed, LIST_MODULES_32BIT))
     {
         K32GetModuleBaseNameA(handle->hProcess, module, procName, BUFLEN);
 
@@ -594,17 +551,59 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
 	return addr;	
 }
 
-bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *errorCode)
-{
-	bool bIs64;
-	DWORD dwError;
+bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *error)
+{	
+	const char *dllName = "dbghelp.dll";
+	HMODULE dbghelp_dll;
+	pImageNtHeader fImageNtHeader;
+	bool bIsx64 = false;
 
-	bIs64 = Is64BitProcess(handle->hProcess, &dwError);
-	if(dwError == ERROR_SUCCESS) {
-		*errorCode = 0;
-		return bIs64;
+	// Load dll
+	dbghelp_dll = LoadLibraryA(dllName);
+	if(dbghelp_dll == NULL) {
+		libhack_err("Failed to load %s", dllName);
+		return false;
 	}
 
-	*errorCode = dwError;
-	return bIs64;
+	fImageNtHeader = (pImageNtHeader)GetProcAddress(dbghelp_dll, "ImageNtHeader");
+	if(!fImageNtHeader) {
+		if(error != NULL)
+			*error = ERROR_NOT_SUPPORTED;
+
+		libhack_err("ImageNtHeader is not supported in your system!");
+		return false;
+	}
+
+#ifdef __x64__
+	DWORD64 baseAddr = libhack_get_base_addr64(handle);
+#else
+	DWORD baseAddr = libhack_get_base_addr(handle);
+#endif
+
+	IMAGE_NT_HEADERS *header = fImageNtHeader((void*)baseAddr);
+	if(header == NULL) {
+
+		if(error != NULL)
+			*error = GetLastError();
+		
+		libhack_err("Failed to get information about exe header: %u", GetLastError());
+		FreeLibrary(dbghelp_dll);
+
+		return false;
+	}
+
+	libhack_debug("Base address of '%s': %lx", handle->process_name, baseAddr);
+
+	// extract machine type
+	unsigned short machineType = header->FileHeader.Machine;
+
+	if(machineType == IMAGE_FILE_MACHINE_I386)
+		bIsx64 = false;
+	else if((machineType == IMAGE_FILE_MACHINE_AMD64) || (machineType == IMAGE_FILE_MACHINE_IA64))
+		bIsx64 = true;
+
+	// Free resources
+	FreeLibrary(dbghelp_dll);
+
+	return bIsx64;
 }

@@ -157,7 +157,7 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
  * @param errorCode Error code (will be 0 on success)
  * @return LIBHACK_API bool true if process is a x64 process 
  */
-LIBHACK_API bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *errorCode);
+LIBHACK_API bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *error);
 
 #ifdef __cplusplus
 }
