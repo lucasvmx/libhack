@@ -92,6 +92,9 @@ struct libhack_handle *libhack_init(const char *process_name)
 	/* Copy process name to internal variable */
 	strncpy(lh->process_name, process_name, sizeof(lh->process_name) / sizeof(lh->process_name[0]));
 	
+	// Transform process name to lowercase
+	strlwr(lh->process_name);
+
 	libhack_debug("Initialized libhack version %s (%s)\n", libhack_getversion(), libhack_get_platform());
 
 	return lh;
