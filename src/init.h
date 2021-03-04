@@ -36,19 +36,19 @@ extern "C" {
 #define arraySize(x) (sizeof(x)/sizeof(x[0]))
 
 #define libhack_assert_or_exit(condition, exit_code) \
-	if(!condition) { \
-		fprintf(stdout, "libhack assert failure on %s line %d\n", __FILE__, __LINE__); \
+	if(!(condition)) { \
+		fprintf(stdout, "[LIBHACK] warn: assert failure on %s line %d\n", __FILE__, __LINE__); \
 		exit(exit_code); \
 	}
 
 #define libhack_assert_or_warn(condition) \
-	if(!condition) { \
-		fprintf(stdout, "warn: assert failure on %s line %d\n", __FILE__, __LINE__); \
+	if(!(condition)) { \
+		fprintf(stdout, "[LIBHACK] warn: assert failure on %s line %d\n", __FILE__, __LINE__); \
 	}
 
 #define libhack_assert_or_return(condition, retval) \
-	if(!condition) { \
-		fprintf(stdout, "warn: assert failure on %s line %d\n", __FILE__, __LINE__); \
+	if(!(condition)) { \
+		fprintf(stdout, "[LIBHACK] warn: assert failure on %s line %d\n", __FILE__, __LINE__); \
 		return retval; \
 	}
 
