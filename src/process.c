@@ -15,10 +15,13 @@
 #include <assert.h>
 #include <shlwapi.h>
 #include <io.h>
+#include <dbghelp.h>
 #ifndef bool
 #include <stdbool.h>
 #endif
 #include "process.h"
+#include "platform.h"
+#include "logger.h"
 
 /**
  * @brief Checking types
@@ -30,6 +33,12 @@ enum CHECK_TYPES {
 };
 
 /**
+ * @brief Pointer to IsWow64Process function
+ * 
+ */
+typedef bool (*pIsWow64Process)(HANDLE hProcess, bool *isWow64);
+
+/**
  * @brief Checks if the specified handle can be used to specified 'type' access
  * 
  * @param handle Handle to libhack
@@ -39,19 +48,15 @@ enum CHECK_TYPES {
  */
 static bool libhack_perform_check(struct libhack_handle *handle, enum CHECK_TYPES type)
 {
-	switch(type)
-	{
-		case WRITE_CHECK:
-		case READ_CHECK:
+	bool bCheck = true;
 
-			// Checks if the process can be opened for read or write
-			if((!handle) || !(handle->bProcessIsOpen))
-				return false;
-
-		break;
+	if(type & WRITE_CHECK || type & READ_CHECK) {
+		// Checks if the process can be opened for read or write
+		if((!handle) || !(handle->bProcessIsOpen))
+			return false;
 	}
 
-	return true;
+	return bCheck;
 }
 
 /**
@@ -61,24 +66,26 @@ static bool libhack_perform_check(struct libhack_handle *handle, enum CHECK_TYPE
  * @param b64bit TRUE if the process is 64 bit
  * @return long Number of modules loaded
  */
-static long libhack_get_modules_count(struct libhack_handle *handle, BOOL b64bit)
+static long libhack_get_modules_count(struct libhack_handle *handle, short filter)
 {
 	HMODULE module;
 	DWORD needed;
-	BOOL status;
-	DWORD filter = b64bit ? LIST_MODULES_64BIT : LIST_MODULES_32BIT;
+	bool status;
 
 	status = K32EnumProcessModulesEx(handle->hProcess, &module, 0, &needed, filter);
 
-	libhack_assert_or_return(status, -1);
+	libhack_assert_or_return(status != FALSE, -1);
 
-	return (long)needed;
+	return (long)needed / sizeof(HMODULE);
 }
 
-BOOL libhack_open_process(struct libhack_handle *handle)
+bool libhack_open_process(struct libhack_handle *handle)
 {
+	bool bIs64 = false;
+	DWORD err;
+
 	if(!handle)
-		return FALSE;
+		return false;
 
 	/* Check if the process is already open */
 	if(!handle->bProcessIsOpen)
@@ -89,23 +96,29 @@ BOOL libhack_open_process(struct libhack_handle *handle)
 			handle->hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 
 			if(!handle->hProcess) {
-				libhack_debug("Failed to open process with pid %lu: %lu\n", pid, GetLastError());
-				return FALSE;
+				libhack_debug("Failed to open process with pid %lu: %lu", pid, GetLastError());
+				return false;
 			}
 
-			/* Update flag */
+			// Setup flags
 			handle->bProcessIsOpen = TRUE;
+			
+			bIs64 = libhack_is64bit_process(handle, &err);
+			if(err == ERROR_SUCCESS) {
+				libhack_debug("%s is 64-bit: %s", handle->process_name, bIs64 ? "yes" : "no");
+				handle->b64BitProcess = bIs64;
+			}
 
-			return TRUE;
+			return true;
 		}
 
-		return FALSE;
+		return false;
 	}
 
 	/* Handle already opened */	
 	SetLastError(ERROR_ALREADY_INITIALIZED);
 
-	return TRUE;
+	return true;
 }
 
 DWORD libhack_get_process_id(struct libhack_handle *handle)
@@ -128,7 +141,7 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 	entry = (PROCESSENTRY32*)malloc(sizeof(PROCESSENTRY32));
 	if(!entry)
 	{
-		libhack_debug("Failed to allocate memory\n");
+		libhack_debug("Failed to allocate memory");
 		return 0;
 	}
 	
@@ -136,12 +149,12 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if(!hSnapshot)
 	{
-		libhack_debug("Failed to create snapshot\n");
+		libhack_debug("Failed to create snapshot");
 		return 0;
 	}
 
 	if(!Process32First(hSnapshot, entry)) {
-		libhack_debug("Failed to initialize process list: %lu\n", GetLastError());
+		libhack_debug("Failed to initialize process list: %lu", GetLastError());
 		return 0;
 	}
 
@@ -172,13 +185,13 @@ int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr)
 
 	/* Validate handle */
 	if(!libhack_perform_check(handle, READ_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		libhack_debug("Check failed! Either process is not opened or handle is invalid");
 		return -1;
 	}
 
 	/* Read memory at the specified address */
 	if(!ReadProcessMemory(handle->hProcess, (const void*)addr, (void*)&value, sizeof(int), &readed)) {
-		libhack_debug("Failed to read memory: %lu\n", GetLastError());
+		libhack_debug("Failed to read memory: %lu", GetLastError());
 		return -1;
 	}
 
@@ -191,13 +204,13 @@ int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int
 
 	/* Validate parameters */
 	if(!libhack_perform_check(handle, WRITE_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		libhack_debug("Check failed! Either process is not opened or handle is invalid");
 		return -1;
 	}
 
 	/* Write memory at the specified address */
 	if(!WriteProcessMemory(handle->hProcess, (void*)addr, (const void*)&value, sizeof(int), &written)) {
-		libhack_debug("Failed to write memory: %lu\n", GetLastError());
+		libhack_debug("Failed to write memory: %lu", GetLastError());
 		return -1;
 	}
 
@@ -206,38 +219,77 @@ int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int
 
 DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
 {
-	HMODULE module;
-    DWORD needed;
-	char procName[BUFLEN];
+	HMODULE *modules = NULL;
+    DWORD needed = 0;
+	char moduleName[BUFLEN];
+	long count = 0;
+	unsigned short filter = LIST_MODULES_64BIT;
 
 	/* Validate parameters */
 	if(!libhack_perform_check(handle, READ_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
-		return -1;
+		libhack_debug("Check failed! Either process is not opened or handle is invalid");
+		return 0;
 	}
 
-	/* Initialize memory */
-    RtlSecureZeroMemory(procName, sizeof(procName));
+#ifdef __x86__
+	libhack_warn("We're calling the x64 version of libhack_get_base_addr instead of x86 version");
+#elif defined(__x64__)
+	if(!handle->b64BitProcess) {
+		libhack_warn("You're trying to get the base address of a 32-bit process using a 64-bit function");
+	}
+#endif
 
+	/* Initialize memory */
+    RtlSecureZeroMemory(moduleName, sizeof(moduleName));
+	
     /* Check if we have a base address already */
-    if(handle->base_addr)
-        return handle->base_addr;
+    if(handle->base_addr) {
+		return handle->base_addr;
+	}
+
+	count = libhack_get_modules_count(handle, filter);
+
+	// Check if previous calling failed
+	libhack_assert_or_return(count > 0, 0);
+
+	modules = (HMODULE*)malloc(sizeof(HMODULE) * count);
+	if(modules == NULL)
+	{
+		libhack_err("We're out of memory");
+		return 0;
+	}
 
     /* Enumerate process modules */
-    if(K32EnumProcessModulesEx(handle->hProcess, &module, sizeof(HMODULE), &needed, LIST_MODULES_ALL))
+    if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, filter))
     {
-        K32GetModuleBaseNameA(handle->hProcess, module, procName, BUFLEN);
+		for(unsigned i = 0; i < (needed / sizeof(HMODULE)); ++i) {
+			// Get module names
+			K32GetModuleBaseNameA(handle->hProcess, modules[i], moduleName, arraySize(moduleName));
 
-		libhack_debug("Name: %s (%s)\n", procName, handle->process_name);
+			// Convert module name to lowercase
+			strlwr(moduleName);
 
-        if(strnicmp(procName, handle->process_name, strlen(handle->process_name)) == 0)
-        {
-            handle->hModule = module;
-			return (DWORD64)module;
-        }
-    }
-	
-	libhack_debug("we failed to get process base address: %lu\n", GetLastError());
+			// Compare module name
+			if(strnicmp(moduleName, handle->process_name, strlen(handle->process_name)) == 0)
+			{
+				DWORD64 modAddr = modules[i];
+
+				// Free memory
+				free(modules);
+
+				handle->hModule = modAddr;
+				return (DWORD64)modAddr;
+			}
+		}
+    } else {
+		libhack_err("Failed to enumerate process modules: %lu", GetLastError());
+		libhack_debug("Needed/Count: %lu/%lu", needed, count);
+	}
+
+	// Free memory
+	free(modules);
+
+	libhack_debug("We failed to get process base address: %lu", GetLastError());
 
 	return 0;
 }
@@ -249,13 +301,13 @@ LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD 
 
 	/* Validate handle */
 	if(!libhack_perform_check(handle, READ_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		libhack_debug("Check failed! Either process is not opened or handle is invalid");
 		return -1;
 	}
 
 	/* Read memory at the specified address */
-	if(!ReadProcessMemory(handle->hProcess, (const void*)addr, (void*)&value, sizeof(DWORD), &readed)) {
-		libhack_debug("Failed to read memory: %lu\n", GetLastError());
+	if(!ReadProcessMemory(handle->hProcess, (const void*)addr, (void*)&value, sizeof(int), &readed)) {
+		libhack_debug("Failed to read memory: %lu", GetLastError());
 		return -1;
 	}
 
@@ -268,7 +320,7 @@ LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD a
 
 	/* Validate parameters */
 	if(!libhack_perform_check(handle, READ_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		libhack_debug("Check failed! Either process is not opened or handle is invalid");
 		return -1;
 	}
 
@@ -283,14 +335,19 @@ LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD a
 
 LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle)
 {
-	HMODULE module;
+	HMODULE *modules = NULL;
     DWORD needed;
 	char procName[BUFLEN];
+	unsigned short filter = LIST_MODULES_32BIT;
 
 	/* Validate parameters */
 	if(!libhack_perform_check(handle, READ_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
-		return -1;
+		libhack_debug("Check failed! Either process is not opened or handle is invalid");
+		return 0;
+	}
+
+	if(handle->b64BitProcess) {
+		libhack_warn("We're using the 32-bit function to get a 64-bit address");
 	}
 
 	/* Initialize memory */
@@ -300,35 +357,65 @@ LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle)
     if(handle->base_addr)
         return handle->base_addr;
 
-    /* Enumerate process modules */
-    if(K32EnumProcessModulesEx(handle->hProcess, &module, sizeof(HMODULE), &needed, LIST_MODULES_ALL))
-    {
-        K32GetModuleBaseNameA(handle->hProcess, module, procName, BUFLEN);
+	long count = libhack_get_modules_count(handle, filter);
+	libhack_assert_or_return(count > 0, 0);
 
-        if(strnicmp(procName, handle->process_name, strlen(handle->process_name)) == 0)
-        {
-            handle->hModule = module;
-			return (DWORD)module;
-        }
-    }
-	
+	modules = (HMODULE*)malloc(sizeof(HMODULE) * count);
+	if(modules == NULL)
+	{
+		libhack_err("We're out of memory");
+		return 0;
+	}
+
+    /* Enumerate process modules */
+    if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, filter))
+    {
+		for(unsigned i = 0; i < count; i++) {
+
+			// Get module name
+			K32GetModuleBaseNameA(handle->hProcess, modules[i], procName, BUFLEN);
+
+			// Transform name to lowercase
+			strlwr(procName);
+
+			// Check if module is the main module
+			if(strnicmp(procName, handle->process_name, strlen(handle->process_name)) == 0)
+			{
+				DWORD modAddr = (DWORD)modules[i];
+				handle->hModule = modules[i];
+
+				// Free memory
+				free(modules);
+
+				return modAddr;
+			}
+		}
+    } else {
+		libhack_err("Failed to enumarate process modules");
+	}
+
+	// Cleanup resources
+	free(modules);
+
+	libhack_debug("Failed to get process base address: %u", GetLastError());
+
 	return 0;   
 }
 
-LIBHACK_API BOOL libhack_process_is_running(struct libhack_handle *handle)
+LIBHACK_API bool libhack_process_is_running(struct libhack_handle *handle)
 {
 	DWORD state;
 
 	// Validate parameters
 	if(!libhack_perform_check(handle, READ_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		libhack_debug("Check failed! Either process is not opened or handle is invalid");
 		return FALSE;
 	}
 
 	// Try to get exit code of the process if any
 	if(!GetExitCodeProcess(handle->hProcess, &state))
 	{
-		libhack_debug("Failed to get process exit code\n");
+		libhack_debug("Failed to get process exit code");
 		return FALSE;
 	}
 	
@@ -341,11 +428,13 @@ LIBHACK_API int libhack_write_string_to_addr(struct libhack_handle *handle, DWOR
 
 	/* Validate parameters */
 	if(!libhack_perform_check(handle, WRITE_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		libhack_debug("check failed! Either process is not opened or handle is invalid");
 		return -1;
 	}
 
-	libhack_debug("Address: %#llx\n", addr);
+	if(handle->b64BitProcess) {
+		libhack_warn("You're trying to write a string into a x64 process by using a 32 bit address");
+	}
 
 	/* Write memory at the specified address */
 	if(!WriteProcessMemory(handle->hProcess, (void*)addr, string, string_len, &written)) {
@@ -362,9 +451,15 @@ int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, 
 
 	/* Validate parameters */
 	if(!libhack_perform_check(handle, WRITE_CHECK)) {
-		libhack_debug("check failed! Either process is not opened or handle is invalid\n");
+		libhack_debug("Check failed! Either process is not opened or handle is invalid");
 		return -1;
 	}
+
+#ifdef __x86__
+	if(handle->b64BitProcess) {
+		libhack_warn("Please, use the 32-bit version of this function: libhack_write_string_to_addr()");
+	}
+#endif
 
 	/* Write memory at the specified address */
 	if(!WriteProcessMemory(handle->hProcess, (void*)addr, string, string_len, &written)) {
@@ -375,7 +470,7 @@ int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, 
 	return written ? (int)written : 0;
 }
 
-LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *dll_path)
+LIBHACK_API bool libhack_inject_dll(struct libhack_handle *handle, const char *dll_path)
 {
 	void *pDllPath = NULL;
 	DWORD threadId;
@@ -388,13 +483,13 @@ LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *d
 	libhack_assert_or_return(dll_path, FALSE);
 	
 	if(!handle->bProcessIsOpen) {
-		libhack_debug("you need to call libhack_open_process() before trying to inject dll on it\n");
-		return FALSE;
+		libhack_debug("You need to call libhack_open_process() before trying to inject dll on it");
+		return false;
 	}
 
 	if(!PathFileExistsA(dll_path)) {
-		libhack_debug("%s could not be found. Don't forget to specify a full path to dll\n", dll_path);
-		return FALSE;
+		libhack_debug("%s could not be found. Don't forget to specify a full path to dll", dll_path);
+		return false;
 	}
 
 	hKernel32 = LoadLibraryA("kernel32.dll");
@@ -405,15 +500,21 @@ LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *d
 	// Allocate memory to store full path of dll to be loaded into target process memory
 	pDllPath = VirtualAllocEx(handle->hProcess, NULL, dll_path_len, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 	if(!pDllPath) {
-		libhack_debug("virtual alloc failed: %lu\n", GetLastError());
-		return FALSE;
+		libhack_debug("Virtual alloc failed: %lu", GetLastError());
+		return false;
 	}
 
 	if(!WriteProcessMemory(handle->hProcess, pDllPath, dll_path, dll_path_len, NULL)) {
-		libhack_debug("failed to write process memory: %lu\n", GetLastError());
+		libhack_debug("Failed to write process memory: %lu", GetLastError());
 		VirtualFreeEx(handle->hProcess, pDllPath, dll_path_len, MEM_RELEASE);
-		return FALSE;
+		return false;
 	}
+
+#ifdef __x86__
+	if(handle->b64BitProcess) {
+		libhack_warn("You're trying to inject a dll into a x64 process from a 32-bit dll");
+	}
+#endif
 
 	// Creates the remote thread on target process that will load library
 	hRemoteThread = CreateRemoteThread(handle->hProcess, NULL, 0, 
@@ -422,45 +523,53 @@ LIBHACK_API BOOL libhack_inject_dll(struct libhack_handle *handle, const char *d
 
 	// Checks if dll injection was completed
 	if(!hRemoteThread) {
-		libhack_debug("failed to inject dll: %lu\n", GetLastError());
-		return FALSE;
+		libhack_debug("Failed to inject dll: %lu", GetLastError());
+		return false;
 	}
 
 	// Once library is loaded we can release all resources
 	if(!VirtualFreeEx(handle->hProcess, pDllPath, dll_path_len, MEM_RELEASE)) {
-		libhack_debug("warn: dll injection was successfull but we failed to free virtual memory: %lu\n", GetLastError());
+		libhack_debug("DLL injection was successfull but we failed to free virtual memory: %lu", GetLastError());
 	}
 
 	libhack_assert_or_warn(CloseHandle(hRemoteThread));
 
 	// TRUE because dll was injected on target process
-	return TRUE;
+	return true;
 }
 
 LIBHACK_API DWORD libhack_getsubmodule_addr(struct libhack_handle *handle, const char *module_name)
 {
 	char basename[MAX_PATH];
 	DWORD addr = 0;
+	unsigned short filter = LIST_MODULES_32BIT;
 
 	// Parameter validation
 	libhack_assert_or_return(handle, 0);
 	libhack_assert_or_return(handle->bProcessIsOpen, 0);
 
 	// Check how many modules we have
-	long count = libhack_get_modules_count(handle, FALSE);
+	long count = libhack_get_modules_count(handle, filter);
 	libhack_assert_or_return(count > 0, 0);
+
+	if(handle->b64BitProcess) {
+		libhack_warn("You're are getting the submodule address loaded by a x64 process with a 32 bit function");
+	}
 
 	HMODULE *modules = (HMODULE*)malloc(sizeof(HMODULE) * count);
 	DWORD needed = 0;
 	libhack_assert_or_return(modules, 0);
 
-	if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, LIST_MODULES_32BIT))
+	if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, filter))
 	{
-		for(long i = 0; i < count; i++) {
-			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, sizeof(basename))) {
-				char *name = strlwr(basename);
+		for(long i = 0; i < count; i++) 
+		{
+			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, arraySize(basename))) 
+			{	
+				// Convert basename to lowercase
+				strlwr(basename);
 
-				if(strncmp(name, module_name, strlen(module_name)) == 0) {
+				if(strnicmp(basename, module_name, strlen(module_name)) == 0) {
 					addr = (DWORD)modules[i];
 					break;
 				}
@@ -477,26 +586,36 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
 {
 	char basename[MAX_PATH];
 	DWORD64 addr = 0;
+	unsigned short filter = LIST_MODULES_64BIT;
 
 	// Parameter validation
 	libhack_assert_or_return(handle, 0);
 	libhack_assert_or_return(handle->bProcessIsOpen, 0);
 
+#ifdef __x86__
+	if(handle->b64BitProcess) {
+		libhack_warn("You're calling a x64 function inside a 32-bit DLL");
+		libhack_warn("Please, use the x86 version: libhack_getsubmodule_addr()");
+	}
+#endif
+
 	// Check how many modules we have
-	long count = libhack_get_modules_count(handle, TRUE);
+	long count = libhack_get_modules_count(handle, filter);
 	libhack_assert_or_return(count > 0, 0);
 
 	HMODULE *modules = (HMODULE*)malloc(sizeof(HMODULE) * count);
 	DWORD needed = 0;
 	libhack_assert_or_return(modules, 0);
 
-	if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, LIST_MODULES_64BIT))
+	if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, filter))
 	{
-		for(long i = 0; i < count; i++) {
-			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, sizeof(basename))) {
-				char *name = strlwr(basename);
+		for(long i = 0; i < count; i++) 
+		{
+			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, sizeof(basename))) 
+			{
+				strlwr(basename);
 
-				if(strncmp(name, module_name, strlen(module_name)) == 0) {
+				if(strnicmp(basename, module_name, strlen(module_name)) == 0) {
 					addr = (DWORD64)modules[i];
 					break;
 				}
@@ -507,4 +626,54 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
 	free(modules);
 
 	return addr;	
+}
+
+static bool fIsWow64Process(HANDLE hProcess, DWORD *error)
+{
+    bool bIsWow64 = false;
+	pIsWow64Process fnIsWow64Process;
+	HMODULE kernel32 = GetModuleHandleA("kernel32");
+
+	libhack_assert_or_return(error, false);
+
+	if(!kernel32) {
+		libhack_err("Failed to load kernel32.dll");
+		*error = GetLastError();
+		return false;
+	}
+
+    fnIsWow64Process = (pIsWow64Process)GetProcAddress(kernel32, "IsWow64Process");
+
+    if(NULL != fnIsWow64Process)
+    {
+        if (!fnIsWow64Process(hProcess, &bIsWow64))
+        {
+			// Set error
+			*error = GetLastError();
+			
+			// Show debug message
+			libhack_err("Failed to call IsWow64Process");
+			FreeLibrary(kernel32);
+			
+            return false;
+        }
+    }
+
+	// Free resources
+	FreeLibrary(kernel32);
+
+	// Set error code
+	*error = ERROR_SUCCESS;
+
+    return bIsWow64;
+}
+
+bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *error)
+{	
+	BOOL bWow64;
+
+	// Call function
+	bWow64 = fIsWow64Process(handle->hProcess, error);
+
+	return !bWow64;
 }

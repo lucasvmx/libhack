@@ -56,7 +56,7 @@ int main()
     */
     libhack_write_int_to_addr(hack, baseAddr + 0x4c, value);
 
-    printf("Value readed from address %#x: %d\n", baseAddr + 0x4c, value);
+    printf("Value written to address %#x: %d\n", baseAddr + 0x4c, value);
 
     /*
         Cleanup resources used by library
