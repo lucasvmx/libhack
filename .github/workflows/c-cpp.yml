@@ -13,20 +13,26 @@ jobs:
   
     steps:
     - uses: actions/checkout@v2
-    - name: configure cmake for library
+    - name: Configure CMake
       run: cmake -G "MinGW Makefiles" -B build
 
-    - name: build library
+    - name: Generate revision information
+      shell: bash
+      run: |
+        curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+        ./autorevision -t h > autorevision.h
+
+    - name: Build libhack
       run: make
       working-directory: build
 
-    - name: configure cmake for examples
+    - name: Configure CMake (examples)
       run: |
         cp ../../build/*.dll libhack.dll
         cp ../../build/*.a libhack.a
         cmake -G "MinGW Makefiles" -B build
       working-directory: src/examples
 
-    - name: build examples
+    - name: Build examples
       run: make
       working-directory: src/examples/build

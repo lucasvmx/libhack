@@ -11,6 +11,8 @@ add_library(hack SHARED
     src/process.h
     src/consts.h
     src/init.h
+    src/logger.c
+    src/logger.h
 )
 
 # configure target properties
@@ -29,6 +31,10 @@ if(MINGW)
     #set(CMAKE_C_FLAGS "-m32")
 elseif(MSVC)
     add_definitions(-DVISUAL_STUDIO)
+	if (NOT MSVC_VERSION LESS 1900)
+		message(AUTHOR_WARNING "Disabling spectre mitigation")
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Qspectre-")
+	endif()
 endif()
 
 

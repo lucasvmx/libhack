@@ -22,3 +22,12 @@ target_link_libraries(write_addr ${LIBHACK})
 target_link_libraries(dll_inject ${LIBHACK})
 target_link_libraries(version_info ${LIBHACK})
 target_link_libraries(submodule_addr ${LIBHACK})
+
+# Set language standard
+set_property(TARGET pid PROPERTY C_STANDARD 11)
+set_property(TARGET read_addr PROPERTY C_STANDARD 11)
+set_property(TARGET write_addr PROPERTY C_STANDARD 11)
+set_property(TARGET dll_inject PROPERTY C_STANDARD 11)
+set_property(TARGET version_info PROPERTY C_STANDARD 11)
+set_property(TARGET submodule_addr PROPERTY C_STANDARD 11)
+
