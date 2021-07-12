@@ -9,6 +9,10 @@
  * 
  */
 
+#ifndef __MINGW__
+#include "mingw_aliases.h"
+#endif
+
 #include <windows.h>
 #include <psapi.h>
 #include <tlhelp32.h>
