@@ -11,6 +11,8 @@ add_library(hack SHARED
     src/process.h
     src/consts.h
     src/init.h
+	src/logger.c
+	src/logger.h
 )
 
 # configure target properties
@@ -22,6 +24,7 @@ set_target_properties(hack
 add_definitions(-DDLL_EXPORT)
 
 TARGET_LINK_LIBRARIES(hack psapi)
+TARGET_LINK_LIBRARIES(hack shlwapi)
 
 # setup flags by compiler
 if(MINGW)
