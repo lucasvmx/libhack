@@ -19,7 +19,7 @@ jobs:
     - name: Generate revision information
       shell: bash
       run: |
-        apt install autorevision
+        sudo apt-get -y install autorevision
         autorevision -t h > autorevision.h
 
     - name: Build libhack
