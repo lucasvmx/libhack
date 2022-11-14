@@ -23,7 +23,9 @@
 #include <dbghelp.h>
 #include <io.h>
 #elif defined(__linux__)
+#define _GNU_SOURCE
 #include <sys/uio.h>
+#include <errno.h>
 #endif
 
 #include <assert.h>
@@ -255,6 +257,20 @@ int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int
 
 	return written ? value : 0;
 #else
+	struct iovec local;
+	struct iovec remote;
+
+	local.iov_base = &value;
+	local.iov_len = sizeof(value);
+	remote.iov_base = (void*)addr;
+	remote.iov_len = sizeof(value);
+
+	ssize_t written = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
+	if(written == -1) {
+		libhack_debug("Failed to write memory: %d (addr: %llx)", errno, addr);
+		return -1;
+	}
+
 	return 0;
 #endif
 }
@@ -536,7 +552,22 @@ int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, 
 
 	return written ? (int)written : 0;
 #else
-	return 0;
+
+	struct iovec local;
+	struct iovec remote;
+
+	local.iov_base = &string;
+	local.iov_len = string_len;
+	remote.iov_base = (void*)addr;
+	remote.iov_len = string_len;
+
+	ssize_t written = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
+	if(written == -1) {
+		libhack_debug("Failed to write memory: %d (addr: %llx)", errno, addr);
+		return -1;
+	}
+
+	return written ? (int)written : 0;
 #endif
 }
 
