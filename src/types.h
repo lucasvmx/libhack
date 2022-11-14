@@ -11,6 +11,7 @@ typedef void *PVOID;
 typedef PVOID HANDLE;
 #endif
 
+#ifndef __windows__
 /**
  * @brief converts a string to lowercase
  * 
@@ -18,5 +19,6 @@ typedef PVOID HANDLE;
  * @return char* 
  */
 extern char *strlwr(char *);
+#endif
 
 #endif

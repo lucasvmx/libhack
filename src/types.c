@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include "types.h"
 
+#ifndef __windows__
 char *strlwr(char *str)
 {
     unsigned char *p = (unsigned char *)str;
@@ -23,3 +24,4 @@ char *strlwr(char *str)
 
     return str;
 }
+#endif
