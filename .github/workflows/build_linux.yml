@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Configure CMake
-      run: cmake -G "MinGW Makefiles" -B build
+      run: cmake -G "Unix Makefiles" -B build
 
     - name: Generate revision information
       shell: bash
@@ -28,7 +28,7 @@ jobs:
 
     - name: Configure CMake (examples)
       run: |
-        cp ../../build/*.dll libhack.dll
+        cp ../../build/*.so libhack.so
         cp ../../build/*.a libhack.a
         cmake -G "MinGW Makefiles" -B build
       working-directory: src/examples
