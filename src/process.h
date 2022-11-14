@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 #include "init.h"
+#include "types.h"
 #include <stdbool.h>
 
 /**

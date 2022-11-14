@@ -13,16 +13,20 @@
 #define LIBHACK_H
 
 #include "consts.h"
-#include "platform.h"
+#include "types.h"
 #include <stdio.h>
+
+#if defined(__MINGW__) || defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#endif
+
 
 #ifndef LIBHACK_API
-#ifdef DLL_EXPORT
-#define LIBHACK_API __declspec(dllexport)
-#else
-#define LIBHACK_API
-#endif
+	#if defined(__windows__) && defined(DLL_EXPORT)
+		#define LIBHACK_API __declspec(dllexport)
+	#else
+		#define LIBHACK_API
+	#endif
 #endif
 
 #ifdef __cplusplus
@@ -89,6 +93,7 @@ struct libhack_handle
 	 */
 	HANDLE hProcess;
 
+#ifdef __windows__
 	/**
 	 * @brief Process module handle
 	 * 
@@ -106,6 +111,10 @@ struct libhack_handle
 	 * 
 	 */
 	BOOL b64BitProcess;
+#else
+	bool bProcessIsOpen;
+	bool b64BitProcess;
+#endif
 };
 
 /**

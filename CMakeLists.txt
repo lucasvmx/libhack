@@ -13,6 +13,8 @@ add_library(hack SHARED
     src/init.h
 	src/logger.c
 	src/logger.h
+    src/types.c
+    src/types.h
 )
 
 # configure target properties
@@ -23,8 +25,10 @@ set_target_properties(hack
 # configure dll exporting
 add_definitions(-DDLL_EXPORT)
 
-TARGET_LINK_LIBRARIES(hack psapi)
-TARGET_LINK_LIBRARIES(hack shlwapi)
+if(MSVC OR MINGW)
+    TARGET_LINK_LIBRARIES(hack psapi)
+    TARGET_LINK_LIBRARIES(hack shlwapi)
+endif()
 
 # setup flags by compiler
 if(MINGW)
