@@ -19,8 +19,8 @@ jobs:
     - name: Generate revision information
       shell: bash
       run: |
-        curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
-        ./autorevision -t h > autorevision.h
+        apt install autorevision
+        autorevision -t h > autorevision.h
 
     - name: Build libhack
       run: make
