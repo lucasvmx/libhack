@@ -14,6 +14,7 @@
 #endif
 
 #include "platform.h"
+#include "status.h"
 
 #ifdef __windows__
 #include <windows.h>
@@ -702,11 +703,10 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 {
 	PROCTAB *proc = NULL;
 	proc_t proc_info;
-	proc_t *px;
 
 	// Sanity check
 	libhack_assert_or_return(handle != NULL, -1);
-
+	
 	if(handle->pid == -1) {
 		proc = openproc(PROC_FILLMEM | PROC_FILLSTAT | PROC_FILLSTATUS);
 
@@ -719,18 +719,17 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 		memset(&proc_info, 0, sizeof(proc_info));
 
 		// Iterates through process list
-		while ((px = readproc(proc, &proc_info)) != NULL) {
-			if(strncmp(proc_info.cmd, handle->process_name, strlen(handle->process_name))) {
-				handle->pid = (pid_t)proc_info.tid;
-				freeproc(px);
-				px = NULL;
+		libhack_notice("reading process list ...");
+	
+		while (readproc(proc, &proc_info) != NULL) {
+			if(strncmp(proc_info.cmd, handle->process_name, strlen(proc_info.cmd)) == 0) {
+				handle->pid = proc_info.tid;
+				libhack_notice("pid of %s: %hi", proc_info.cmd, handle->pid);
 				break;
 			}
-
-			// Free unused resources
-			freeproc(px);
-			px = NULL;
 		}
+
+		libhack_notice("cleaning up resources");
 
 		closeproc(proc);
 	}
@@ -742,17 +741,21 @@ long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, in
 	struct iovec local;
 	struct iovec remote;
 
+	// Sanity check
+	libhack_assert_or_return(handle != NULL, -1);
+
 	local.iov_base = &value;
 	local.iov_len = sizeof(value);
 	remote.iov_base = (void*)addr;
 	remote.iov_len = sizeof(value);
 
+	libhack_notice("writing address %lx on %d", addr, handle->pid);
 	ssize_t written = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
 	if(written == -1 || (written != sizeof(value))) {
 		libhack_debug("Failed to write memory: %d (addr: %llx)", errno, addr);
-		return -1;
+		return errno;
 	}
 
-	return written;
+	return LIBHACK_OK;
 }
 #endif
