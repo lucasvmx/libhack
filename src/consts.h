@@ -20,3 +20,11 @@
  * 
  */
 #define VERSION_NUMBER_LEN  16
+
+#ifdef __linux__
+/**
+ * @brief Maximum size of a process
+ * 
+ */
+#define MAX_PROCESS_NAME 64
+#endif // __linux__
