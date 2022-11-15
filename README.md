@@ -25,24 +25,17 @@
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[total-downloads-url]: https://img.shields.io/github/downloads/lucas-engen/libhack/total?color=blue&style=plastic
-[build-status-url]: https://img.shields.io/github/workflow/status/lucas-engen/libhack/Build?style=plastic
-[issues-open-url]: https://img.shields.io/github/issues/lucas-engen/libhack?color=green&style=plastic
-[license-url]: https://img.shields.io/github/license/lucas-engen/libhack?style=plastic&color=196F3D
-[contributors-url]: https://img.shields.io/github/contributors/lucas-engen/libhack?color=b266ff&style=plastic
-[release-url]: https://img.shields.io/github/v/release/lucas-engen/libhack?color=ff9933&style=plastic
-[pull-requests-url]: https://img.shields.io/github/issues-pr/lucas-engen/libhack?color=0000ff&style=plastic
-[code-quality-url]: https://img.shields.io/codefactor/grade/github/lucas-engen/libhack?style=plastic
+[build-status-linux-url]: https://img.shields.io/github/workflow/status/lucasvmx/libhack/Build%20-%20Linux/dev?label=Build%20-%20linux64&style=flat-square
+[build-status-win-url]: https://img.shields.io/github/workflow/status/lucasvmx/libhack/Build%20-%20Windows/dev?label=Build%20-%20win64&style=flat-square
+[code-quality-url]: https://img.shields.io/codefactor/grade/github/lucasvmx/libhack?color=#00ff00&style=flat-square
+[license-url]: https://img.shields.io/github/license/lucas-engen/libhack?style=flat-square&color=purple
+
+
 [issues-closed-url]: https://img.shields.io/github/issues-closed-raw/lucas-engen/libhack?color=bb0000&style=plastic
 
-![build][build-status-url]
-![download][total-downloads-url]
-![issues-open][issues-open-url]
-![issues-closed][issues-closed-url]
+![build][build-status-linux-url]
+![build][build-status-win-url]
 ![license][license-url]
-![contributors][contributors-url]
-![release][release-url]
-![pull-requests][pull-requests-url]
 ![code-quality][code-quality-url]
 
 <!-- PROJECT LOGO -->
