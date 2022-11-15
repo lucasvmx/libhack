@@ -23,7 +23,7 @@ set_target_properties(hack
 )
 
 # configure dll exporting
-add_definitions(-DDLL_EXPORT)
+add_definitions(-DDLL_EXPORT -DDEBUG)
 
 if(MSVC OR MINGW)
     TARGET_LINK_LIBRARIES(hack psapi)
