@@ -7,8 +7,6 @@
 #if defined(__linux32) || defined(__linux64)
 #define DWORD unsigned long
 #define DWORD64 unsigned long long
-typedef void *PVOID;
-typedef PVOID HANDLE;
 #endif
 
 #ifndef __windows__
