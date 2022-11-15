@@ -170,7 +170,7 @@ struct libhack_handle {
 	 * @brief Process name
 	 * 
 	 */
-	char process_name[BUFLEN];
+	char process_name[MAX_PROCESS_NAME];
 
 	/**
 	 * @brief Process identifier
@@ -178,7 +178,6 @@ struct libhack_handle {
 	 */
 	pid_t pid;
 };
-
 
 struct libhack_handle *libhack_init(const char *process_name);
 void libhack_free(struct libhack_handle *lh);
