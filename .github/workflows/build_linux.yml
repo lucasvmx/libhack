@@ -23,7 +23,9 @@ jobs:
         autorevision -t h > autorevision.h
 
     - name: Build libhack
-      run: make
+      run: |
+        sudo apt-get install libproc-dev
+        make
       working-directory: build
 
     #- name: Configure CMake (examples)
