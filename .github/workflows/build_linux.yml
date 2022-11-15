@@ -28,13 +28,12 @@ jobs:
         make
       working-directory: build
 
-    #- name: Configure CMake (examples)
-    #  run: |
-    #    cp ../../build/*.so libhack.so
-    #  #  cp ../../build/*.a libhack.a
-    #    cmake -G "Unix Makefiles" -B build
-    #  working-directory: src/examples/linux
+    - name: Configure CMake (examples)
+     run: |
+       cp ../../../build/*.so libhack.so
+       cmake -G "Unix Makefiles" -B build
+     working-directory: src/examples/linux
 
-    #- name: Build examples
-    #  run: make
-    #  working-directory: src/examples/build
+    - name: Build examples
+     run: make
+     working-directory: src/examples/linux/build
