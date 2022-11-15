@@ -14,7 +14,7 @@
 #endif
 
 #include "platform.h"
-#include "status.h"
+#include "status_codes.h"
 
 #ifdef __windows__
 #include <windows.h>
