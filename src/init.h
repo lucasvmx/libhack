@@ -56,6 +56,7 @@ extern "C" {
 		return retval; \
 	}
 
+#ifdef __windows__
 /**
  * @brief Handle to libhack
  * 
@@ -93,7 +94,6 @@ struct libhack_handle
 	 */
 	HANDLE hProcess;
 
-#ifdef __windows__
 	/**
 	 * @brief Process module handle
 	 * 
@@ -111,10 +111,6 @@ struct libhack_handle
 	 * 
 	 */
 	BOOL b64BitProcess;
-#else
-	bool bProcessIsOpen;
-	bool b64BitProcess;
-#endif
 };
 
 /**
@@ -165,6 +161,29 @@ LIBHACK_API void libhack_free(struct libhack_handle *handle);
  * 
  */
 #define libhack_cleanup(handle) libhack_free(handle)
+
+#elif defined(__linux__)
+
+struct libhack_handle {
+
+	/**
+	 * @brief Process name
+	 * 
+	 */
+	char process_name[BUFLEN];
+
+	/**
+	 * @brief Process identifier
+	 * 
+	 */
+	pid_t pid;
+};
+
+
+struct libhack_handle *libhack_init(const char *process_name);
+void libhack_free(struct libhack_handle *lh);
+
+#endif
 
 #ifdef __cplusplus
 }

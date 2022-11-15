@@ -18,6 +18,7 @@
 #endif
 
 #ifdef __linux__
+#include <errno.h>
 #endif
 #include <string.h>
 #include <stdlib.h>
@@ -32,6 +33,7 @@
  */
 static char version[VERSION_NUMBER_LEN];
 
+#ifdef __windows__
 LIBHACK_API const char *libhack_get_platform()
 {
 #if defined(__x86__)
@@ -124,3 +126,34 @@ void libhack_free(struct libhack_handle *lh_handle)
 {
 	free(lh_handle);
 }
+
+#elif defined(__linux__)
+
+struct libhack_handle *libhack_init(const char *process_name)
+{
+	struct libhack_handle *lh = NULL;
+
+	// Sanity checking
+	if(!process_name)
+		return NULL;
+
+	lh = (struct libhack_handle*)calloc(1, sizeof(struct libhack_handle));
+	if(!lh) {
+		libhack_debug("[ERROR] Failed to initialize libhack: %d\n", errno);
+		return NULL;
+	}
+
+	// Copy process name to struct
+	strncpy(lh->process_name, process_name, strlen(process_name));
+
+	// Initializes value for process ID
+	lh->pid = -1;
+
+	return lh;
+}
+
+void libhack_free(struct libhack_handle *lh) {
+	free(lh);
+}
+
+#endif
