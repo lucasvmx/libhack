@@ -30,6 +30,10 @@ if(MSVC OR MINGW)
     TARGET_LINK_LIBRARIES(hack shlwapi)
 endif()
 
+if(UNIX)
+    TARGET_LINK_LIBRARIES(hack procps)
+endif()
+
 # setup flags by compiler
 if(MINGW)
     add_definitions(-DMINGW)
