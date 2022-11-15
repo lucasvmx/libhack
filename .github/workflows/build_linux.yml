@@ -24,7 +24,7 @@ jobs:
 
     - name: Build libhack
       run: |
-        sudo apt-get install libproc-dev
+        sudo apt-get install libprocps-dev
         make
       working-directory: build
 
