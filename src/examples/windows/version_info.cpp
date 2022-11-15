@@ -10,7 +10,7 @@
  */
 
 #include <iostream>
-#include "../init.h"
+#include "../../init.h"
 
 using namespace std;
 
