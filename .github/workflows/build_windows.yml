@@ -1,13 +1,9 @@
 name: Build - Windows
 
-on:
-  push:
-    branches: [ dev ]
-  pull_request:
-    branches: [ master ]
+on: [push, pull_request]
 
 jobs:
-  build-windows:
+  build:
 
     runs-on: windows-latest
   
