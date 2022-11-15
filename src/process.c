@@ -25,7 +25,10 @@
 #elif defined(__linux__)
 #define _GNU_SOURCE
 #include <sys/uio.h>
+#include <dlfcn.h>
 #include <errno.h>
+#include <string.h>
+#include <proc/readproc.h>
 #endif
 
 #include <assert.h>
@@ -52,7 +55,6 @@ enum CHECK_TYPES {
  * 
  */
 typedef bool (*pIsWow64Process)(HANDLE hProcess, bool *isWow64);
-#endif
 
 /**
  * @brief Checks if the specified handle can be used to specified 'type' access
@@ -84,7 +86,6 @@ static bool libhack_perform_check(struct libhack_handle *handle, enum CHECK_TYPE
  */
 static long libhack_get_modules_count(struct libhack_handle *handle, short filter)
 {
-#ifdef __windows__
 	HMODULE module;
 	DWORD needed;
 	bool status;
@@ -94,14 +95,10 @@ static long libhack_get_modules_count(struct libhack_handle *handle, short filte
 	libhack_assert_or_return(status != FALSE, -1);
 
 	return (long)needed / sizeof(HMODULE);
-#else
-	return 0;
-#endif 
 }
 
 bool libhack_open_process(struct libhack_handle *handle)
 {
-#ifdef __windows__
 	bool bIs64 = false;
 	DWORD err;
 
@@ -140,22 +137,10 @@ bool libhack_open_process(struct libhack_handle *handle)
 	SetLastError(ERROR_ALREADY_INITIALIZED);
 
 	return true;
-#else
-	if(!handle) {
-		return false;
-	}
-
-	if(!handle->bProcessIsOpen) {
-
-	}
-
-	return true;
-#endif
 }
 
 DWORD libhack_get_process_id(struct libhack_handle *handle)
 {
-#ifdef __windows__
 	HANDLE hSnapshot;
 	PROCESSENTRY32 *entry = NULL;
 	DWORD pid = 0;
@@ -209,14 +194,10 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 	handle->pid = pid;
 
 	return pid;
-#else
-	return 0;
-#endif
 }
 
 int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr)
 {
-#ifdef __windows__
 	int value = -1;
 	SIZE_T readed;
 
@@ -233,14 +214,10 @@ int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr)
 	}
 
 	return readed ? value : -1;
-#else
-	return 0;
-#endif
 }
 
 int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value)
 {
-#ifdef __windows__
 	SIZE_T written = 0;
 
 	/* Validate parameters */
@@ -256,28 +233,10 @@ int libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int
 	}
 
 	return written ? value : 0;
-#else
-	struct iovec local;
-	struct iovec remote;
-
-	local.iov_base = &value;
-	local.iov_len = sizeof(value);
-	remote.iov_base = (void*)addr;
-	remote.iov_len = sizeof(value);
-
-	ssize_t written = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
-	if(written == -1) {
-		libhack_debug("Failed to write memory: %d (addr: %llx)", errno, addr);
-		return -1;
-	}
-
-	return 0;
-#endif
 }
 
 DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
 {
-#ifdef __windows__
 	HMODULE *modules = NULL;
     DWORD needed = 0;
 	char moduleName[BUFLEN];
@@ -351,14 +310,10 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
 	libhack_debug("We failed to get process base address: %lu", GetLastError());
 
 	return 0;
-#else
-	return 0;
-#endif
 }
 
 LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr)
 {
-#ifdef __windows__
 	int value = -1;
 	SIZE_T readed;
 
@@ -375,14 +330,10 @@ LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD 
 	}
 
 	return readed ? value : -1;
-#else
-	return 0;
-#endif
 }
 
 LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD addr, int value)
 {
-#ifdef __windows__
 	SIZE_T written = 0;
 
 	/* Validate parameters */
@@ -398,14 +349,10 @@ LIBHACK_API int libhack_write_int_to_addr(struct libhack_handle *handle, DWORD a
 	}
 
 	return written ? value : 0;
-#else
-	return 0;
-#endif
 }
 
 LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle)
 {
-#ifdef __windows__
 	HMODULE *modules = NULL;
     DWORD needed;
 	char procName[BUFLEN];
@@ -471,14 +418,10 @@ LIBHACK_API DWORD libhack_get_base_addr(struct libhack_handle *handle)
 	libhack_debug("Failed to get process base address: %u", GetLastError());
 
 	return 0;
-#else
-	return 0;
-#endif
 }
 
 LIBHACK_API bool libhack_process_is_running(struct libhack_handle *handle)
 {
-#ifdef __windows__
 	DWORD state;
 
 	// Validate parameters
@@ -495,14 +438,10 @@ LIBHACK_API bool libhack_process_is_running(struct libhack_handle *handle)
 	}
 	
 	return state == STILL_ACTIVE ? TRUE : FALSE;
-#else
-	return true;
-#endif
 }
 
 LIBHACK_API int libhack_write_string_to_addr(struct libhack_handle *handle, DWORD addr, const char *string, size_t string_len)
 {
-#ifdef __windows__
 	SIZE_T written = 0;
 
 	/* Validate parameters */
@@ -522,14 +461,10 @@ LIBHACK_API int libhack_write_string_to_addr(struct libhack_handle *handle, DWOR
 	}
 
 	return written ? (int)written : 0;
-#else
-	return 0;
-#endif
 }
 
 int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len)
 {
-#ifdef __windows__
 	SIZE_T written = 0;
 
 	/* Validate parameters */
@@ -551,29 +486,10 @@ int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, 
 	}
 
 	return written ? (int)written : 0;
-#else
-
-	struct iovec local;
-	struct iovec remote;
-
-	local.iov_base = &string;
-	local.iov_len = string_len;
-	remote.iov_base = (void*)addr;
-	remote.iov_len = string_len;
-
-	ssize_t written = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
-	if(written == -1) {
-		libhack_debug("Failed to write memory: %d (addr: %llx)", errno, addr);
-		return -1;
-	}
-
-	return written ? (int)written : 0;
-#endif
 }
 
 LIBHACK_API bool libhack_inject_dll(struct libhack_handle *handle, const char *dll_path)
 {
-#ifdef __windows__
 	void *pDllPath = NULL;
 	DWORD threadId;
 	HANDLE hRemoteThread = NULL;
@@ -638,14 +554,10 @@ LIBHACK_API bool libhack_inject_dll(struct libhack_handle *handle, const char *d
 
 	// TRUE because dll was injected on target process
 	return true;
-#else
-	return true;
-#endif
 }
 
 LIBHACK_API DWORD libhack_getsubmodule_addr(struct libhack_handle *handle, const char *module_name)
 {
-#ifdef __windows__
 	char basename[MAX_PATH];
 	DWORD addr = 0;
 	unsigned short filter = LIST_MODULES_32BIT;
@@ -686,14 +598,10 @@ LIBHACK_API DWORD libhack_getsubmodule_addr(struct libhack_handle *handle, const
 	free(modules);
 
 	return addr;
-#else
-	return 0;
-#endif
 }
 
 LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, const char *module_name)
 {
-#ifdef __windows__
 	char basename[MAX_PATH];
 	DWORD64 addr = 0;
 	unsigned short filter = LIST_MODULES_64BIT;
@@ -736,14 +644,10 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
 	free(modules);
 
 	return addr;
-#else
-	return 0;
-#endif
 }
 
 static bool fIsWow64Process(HANDLE hProcess, DWORD *error)
 {
-#ifdef __windows__
     bool bIsWow64 = false;
 	pIsWow64Process fnIsWow64Process;
 	HMODULE kernel32 = GetModuleHandleA("kernel32");
@@ -780,21 +684,75 @@ static bool fIsWow64Process(HANDLE hProcess, DWORD *error)
 	*error = ERROR_SUCCESS;
 
     return bIsWow64;
-#else
-	return true;
-#endif
 }
 
 bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *error)
 {	
-#ifdef __windows__
 	BOOL bWow64;
 
 	// Call function
 	bWow64 = fIsWow64Process(handle->hProcess, error);
 
 	return !bWow64;
-#else
-	return true;
-#endif
 }
+
+#elif defined(__linux__)
+
+pid_t libhack_get_process_id(struct libhack_handle *handle)
+{
+	PROCTAB *proc = NULL;
+	proc_t proc_info;
+	proc_t *px;
+
+	// Sanity check
+	libhack_assert_or_return(handle != NULL, -1);
+
+	if(handle->pid == -1) {
+		proc = openproc(PROC_FILLMEM | PROC_FILLSTAT | PROC_FILLSTATUS);
+
+		if(!proc) {
+			libhack_err("Failed to list processes: %d", errno);
+			return -1;
+		}
+
+		// Allocates memory
+		memset(&proc_info, 0, sizeof(proc_info));
+
+		// Iterates through process list
+		while ((px = readproc(proc, &proc_info)) != NULL) {
+			if(strncmp(proc_info.cmd, handle->process_name, strlen(handle->process_name))) {
+				handle->pid = (pid_t)proc_info.tid;
+				freeproc(px);
+				px = NULL;
+				break;
+			}
+
+			// Free unused resources
+			freeproc(px);
+			px = NULL;
+		}
+
+		closeproc(proc);
+	}
+
+	return handle->pid;
+}
+
+long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value) {
+	struct iovec local;
+	struct iovec remote;
+
+	local.iov_base = &value;
+	local.iov_len = sizeof(value);
+	remote.iov_base = (void*)addr;
+	remote.iov_len = sizeof(value);
+
+	ssize_t written = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
+	if(written == -1 || (written != sizeof(value))) {
+		libhack_debug("Failed to write memory: %d (addr: %llx)", errno, addr);
+		return -1;
+	}
+
+	return written;
+}
+#endif

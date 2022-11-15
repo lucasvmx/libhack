@@ -24,6 +24,7 @@ extern "C" {
 #include "types.h"
 #include <stdbool.h>
 
+#ifdef __windows__
 /**
  * @brief Opens the process specified when initializing library
  * 
@@ -159,6 +160,14 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
  * @return LIBHACK_API bool true if process is a x64 process 
  */
 LIBHACK_API bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *error);
+
+#elif defined(__linux__)
+
+
+pid_t libhack_get_process_id(struct libhack_handle *handle);
+long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value);
+
+#endif
 
 #ifdef __cplusplus
 }
