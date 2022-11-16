@@ -19,8 +19,6 @@ jobs:
           command: |
             sudo pacman -Sy --noconfirm
             sudo pacman -S --noconfirm cmake gcc make base-devel
-          name: "Build library"
-          command: |
             cmake -B build
             make -C build
         
