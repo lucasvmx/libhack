@@ -18,9 +18,9 @@ jobs:
           name: "Generate makefiles and build library"
           command: |
             ls -l
+            cmake --help
             sudo pacman -Sy --noconfirm
             sudo pacman -S --noconfirm cmake gcc
-            cmake
             cmake -B build
             make -C build
             
