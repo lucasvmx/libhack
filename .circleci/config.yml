@@ -20,7 +20,8 @@ jobs:
             ls -l
             sudo pacman -Sy --noconfirm
             sudo pacman -S --noconfirm cmake gcc
-            cmake -G "Unix Makefiles" -B build
+            cmake
+            cmake -B build
             make -C build
             
 
