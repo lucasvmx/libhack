@@ -13,10 +13,13 @@ jobs:
     # Add steps to the job
     # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:
-      - checkout
       - run:
           name: "Update packages"
           command: sudo pacman -Syu --noconfirm
+      - run:
+          name: "Install git"
+          command: sudo pacman -S --noconfirm git
+      - checkout
       - run:
           name: "Install development packages"
           command: |
