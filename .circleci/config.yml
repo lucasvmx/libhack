@@ -43,8 +43,8 @@ jobs:
       - run:
           name: "Update packages"
           command: |
-            sudo apt update
-            sudo apt-get -y upgrade
+            apt update
+            apt-get -y upgrade
       - run:
           name: "Install packages"
           command: sudo apt-get -y install libprocps-dev gcc cmake make build-essential git curl
