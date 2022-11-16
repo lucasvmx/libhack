@@ -17,6 +17,7 @@ jobs:
       - run:
           name: "Generate makefiles and build library"
           command: |
+            sudo pacman -S cmake
             cmake -G "Unix Makefiles" -B build
             make -C build
 
