@@ -15,16 +15,15 @@ jobs:
     steps:
       - checkout
       - run:
-          name: "Generate makefiles and build library"
+          name: "Install packages"
           command: |
-            ls -l
-            
             sudo pacman -Sy --noconfirm
-            sudo pacman -S --noconfirm cmake gcc
-            cmake --help
+            sudo pacman -S --noconfirm cmake gcc make base-devel
+          name: "Build library"
+          command: |
             cmake -B build
             make -C build
-            
+        
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
