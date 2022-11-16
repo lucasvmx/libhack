@@ -25,6 +25,7 @@ jobs:
       - run:
           name: "Build library"
           command: |
+            ls
             cmake -B build
             make -C build
            
