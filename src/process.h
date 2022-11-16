@@ -167,12 +167,13 @@ LIBHACK_API bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *e
 pid_t libhack_get_process_id(struct libhack_handle *handle);
 
 
-long libhack_get_base_addr(struct libhack_handle *handle);
+
 long libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr, int *value);
 long libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr, int *value);
 long libhack_write_int_to_addr(struct libhack_handle *handle, DWORD addr, int value);
 long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value);
 
+long libhack_get_base_addr(struct libhack_handle *handle);
 long libhack_get_base_addr64(struct libhack_handle *handle);
 
 #endif

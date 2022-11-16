@@ -795,15 +795,17 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	}
 
 	unsigned long start, end;
-	unsigned dev_major, dev_minor;
-	unsigned long long file_offset, inode;
 	char flags[32];
 	char pathname[BUFLEN];
 
+	memset(flags, 0, sizeof(flags));
+
 	// read all contents of file, line by line
 	while((getline(&line, &line_len, fd)) > 0) {
-		sscanf(line,"%lx-%lx %31s %Lx %x:%x %Lu %s", &start, &end, flags, &file_offset, &dev_major, &dev_minor, &inode, &pathname);
-		if(strstr(pathname, handle->process_name) != NULL) {
+		sscanf(line,"%lx-%lx %31s %*Lx %*x:%*x %*Lu %s", &start, &end, flags, &pathname);
+
+		// The address must be readable
+		if((strstr(pathname, handle->process_name) != NULL) && flags[0] == 'r') {
 			libhack_debug("base address: %lx", start);
 			break;
 		}
@@ -818,6 +820,11 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	handle->base_addr = (long long)start;
 
 	return start;
+}
+
+long libhack_get_base_addr64(struct libhack_handle *handle)
+{
+	return libhack_get_base_addr(handle);
 }
 
 long libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr, int *value)
