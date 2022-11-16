@@ -17,7 +17,7 @@ jobs:
       - run:
           name: "Generate makefiles and build library"
           command: |
-            sudo pacman -S --confirm cmake
+            sudo pacman -S --noconfirm cmake gcc lib32-procps-ng
             cmake -G "Unix Makefiles" -B build
             make -C build
 
