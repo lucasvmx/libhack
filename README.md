@@ -25,16 +25,19 @@
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[build-status-linux-url]: https://img.shields.io/github/workflow/status/lucasvmx/libhack/Build%20-%20Linux/dev?label=Build%20-%20linux64&style=flat-square
-[build-status-win-url]: https://img.shields.io/github/workflow/status/lucasvmx/libhack/Build%20-%20Windows/dev?label=Build%20-%20win64&style=flat-square
+[build-status-linux-url]: https://img.shields.io/github/workflow/status/lucasvmx/libhack/Build%20-%20Linux/dev?label=ubuntu-lts&style=flat-square
+[build-status-win-url]: https://img.shields.io/github/workflow/status/lucasvmx/libhack/Build%20-%20Windows/dev?label=windows&style=flat-square
 [code-quality-url]: https://img.shields.io/codefactor/grade/github/lucasvmx/libhack?color=#00ff00&style=flat-square
 [license-url]: https://img.shields.io/github/license/lucas-engen/libhack?style=flat-square&color=purple
-
+[circle-ci-url]: https://img.shields.io/circleci/build/github/lucasvmx/libhack/dev?label=manjaro&token=3dd99d046c4fd7b7f8945a1096963ffe6ee8cbc9
+[debian-circle-ci-url]: https://img.shields.io/circleci/build/github/lucasvmx/libhack/dev?label=debian&token=3dd99d046c4fd7b7f8945a1096963ffe6ee8cbc9
 
 [issues-closed-url]: https://img.shields.io/github/issues-closed-raw/lucas-engen/libhack?color=bb0000&style=plastic
 
 ![build][build-status-linux-url]
 ![build][build-status-win-url]
+![build][circle-ci-url]
+![build][debian-circle-ci-url]
 ![license][license-url]
 ![code-quality][code-quality-url]
 
