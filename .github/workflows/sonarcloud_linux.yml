@@ -53,7 +53,7 @@ jobs:
       
       - name: Setup build environment
         run: |
-          cmake -G "Unix Makefiles" -B build
+          cmake -S . -B build
           sudo apt-get -y install autorevision
           autorevision -t h > autorevision.h
           sudo apt-get install libprocps-dev
