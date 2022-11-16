@@ -894,9 +894,13 @@ bool libhack_process_is_running(struct libhack_handle *handle)
 	snprintf(image_path, arraySize(image_path), "/proc/%d", pid);
 	
 	// Check if path is readable by current process
-	if(access(image_path, R_OK) == -1) {
+	DIR *d = opendir(image_path);
+	if(d == NULL) {
+		libhack_err("could not open %s", image_path);
 		return false;
 	}
+
+	closedir(d);
 
 	return true;
 }
