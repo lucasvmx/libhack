@@ -802,7 +802,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 
 	// read all contents of file, line by line
 	while((getline(&line, &line_len, fd)) > 0) {
-		sscanf(line,"%lx-%lx %31s %*x %*x:%*x %*u %s", &start, &end, flags, &pathname[0]);
+		sscanf(line,"%lx-%lx %31s %*x %*x:%*x %*u %255s", &start, &end, flags, &pathname[0]);
 
 		// The address must be readable
 		if((strstr(pathname, handle->process_name) != NULL) && flags[0] == 'r') {
