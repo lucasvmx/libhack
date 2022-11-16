@@ -901,4 +901,32 @@ bool libhack_process_is_running(struct libhack_handle *handle)
 	return true;
 }
 
+int libhack_write_string_to_addr(struct libhack_handle *handle, DWORD addr, const char *string, size_t len)
+{
+	return libhack_write_string_to_addr64(handle, (DWORD64)addr, string, len);
+}
+
+int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len)
+{
+	struct iovec local;
+	struct iovec remote;
+
+	// Sanity check
+	libhack_assert_or_return(handle != NULL, -1);
+
+	local.iov_base = &string;
+	local.iov_len = string_len;
+	remote.iov_base = (void*)addr;
+	remote.iov_len = string_len;
+
+	libhack_notice("writing address %lx on %d", addr, handle->pid);
+	ssize_t written = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
+	if(written == -1 || (written != string_len)) {
+		libhack_debug("Failed to write memory: %d (addr: %llx)", errno, addr);
+		return errno;
+	}
+
+	return LIBHACK_OK;
+}
+
 #endif
