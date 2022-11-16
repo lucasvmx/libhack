@@ -725,6 +725,8 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 			if(strncmp(proc_info.cmd, handle->process_name, strlen(proc_info.cmd)) == 0) {
 				handle->pid = proc_info.tid;
 				libhack_notice("pid of %s: %hi", proc_info.cmd, handle->pid);
+				libhack_debug("start code, end code, start stack: %#lx, %#lx, %#lx", 
+				proc_info.start_code, proc_info.end_code, proc_info.start_stack);
 				break;
 			}
 		}
@@ -735,6 +737,33 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 	}
 
 	return handle->pid;
+}
+
+long libhack_read_int_from_addr(struct libhack_handle *handle, DWORD64 addr, int *value)
+{
+	struct iovec local;
+	struct iovec remote;
+
+	// Sanity checking
+	libhack_assert_or_return(handle != NULL && value != NULL, -1);
+
+	local.iov_base = value;
+	local.iov_len = sizeof(int);
+	remote.iov_base = &addr;
+	remote.iov_len = sizeof(int);
+
+	ssize_t readed = process_vm_readv(handle->pid, &local, 1, &remote, 1, 0);
+	if(readed == -1 || readed != sizeof(int)) {
+		libhack_err("Failed to read memory at address %lx from %d: %d\n", addr, handle->pid, errno);
+		return errno;
+	}
+
+	return LIBHACK_OK;
+}
+
+long libhack_write_int_to_addr(struct libhack_handle *handle, DWORD addr, int value)
+{
+	return libhack_write_int_to_addr64(handle, (DWORD64)addr, value);
 }
 
 long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value) {
@@ -758,4 +787,17 @@ long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, in
 
 	return LIBHACK_OK;
 }
+
+long libhack_get_base_addr64(struct libhack_handle *handle)
+{
+	// Sanity checking
+	libhack_assert_or_return(handle != NULL, -1);
+
+	if(handle->base_addr == -1) {
+		
+	}
+
+	return handle->base_addr;
+}
+
 #endif
