@@ -19,10 +19,18 @@ jobs:
       - run:
           name: "Install git"
           command: sudo pacman -S --noconfirm git
-      - checkout
+      - run:
+          name: "Checkout"
+          command: |
+            git clone https://github.com/lucasvmx/libhack.git
+            cd libhack
+            git checkout dev
+            git branch
+      #- checkout
       - run:
           name: "Install development packages"
           command: |
+            ls -la
             sudo pacman -S --noconfirm cmake gcc make base-devel curl
             sudo pacman -Ss procps
       - run:
