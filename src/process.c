@@ -30,6 +30,9 @@
 #include <errno.h>
 #include <string.h>
 #include <proc/readproc.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <stdlib.h>
 #endif
 
 #include <assert.h>
@@ -739,7 +742,85 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 	return handle->pid;
 }
 
-long libhack_read_int_from_addr(struct libhack_handle *handle, DWORD64 addr, int *value)
+long libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr, int *value)
+{
+	return libhack_read_int_from_addr64(handle, (DWORD64)addr, value);	
+}
+
+long libhack_get_base_addr(struct libhack_handle *handle)
+{
+	pid_t pid;
+	char maps_path[BUFLEN];
+	char *line;
+	char *file_content;
+	size_t line_len = 1024;
+	struct stat st;
+
+	// Santity checking
+	libhack_assert_or_return(handle != NULL, -1);
+
+	// Get process ID
+	if(handle->pid == -1) {
+		pid = libhack_get_process_id(handle);
+	} else {
+		pid = handle->pid;
+	}
+
+	// check if we already have a base address
+	if(handle->base_addr > 0) {
+		return handle->base_addr;
+	}
+
+	line = (char*)malloc(sizeof(char) * line_len);
+	libhack_assert_or_return(line != NULL, -1);
+
+	snprintf(maps_path, arraySize(maps_path), "/proc/%d/maps", pid);
+
+	// Get file size
+	if(stat(maps_path, &st) == -1) {
+		libhack_err("failed to stat %s: %d\n", maps_path, errno);
+		free(line);
+		return errno;
+	}
+
+	file_content = (char*)malloc(sizeof(char) * st.st_size);
+	libhack_assert_or_return(file_content != NULL, -1);
+
+	FILE *fd = fopen(maps_path, "r");
+	if(fd == NULL) {
+		libhack_err("failed to open %s: %d\n", maps_path, errno);
+		free(line);
+		free(file_content);
+		return errno;
+	}
+
+	unsigned long start, end;
+	unsigned dev_major, dev_minor;
+	unsigned long long file_offset, inode;
+	char flags[32];
+	char pathname[BUFLEN];
+
+	// read all contents of file, line by line
+	while((getline(&line, &line_len, fd)) > 0) {
+		sscanf(line,"%lx-%lx %31s %Lx %x:%x %Lu %s", &start, &end, flags, &file_offset, &dev_major, &dev_minor, &inode, &pathname);
+		if(strstr(pathname, handle->process_name) != NULL) {
+			libhack_debug("base address: %lx", start);
+			break;
+		}
+	}
+
+	// close file and release resources
+	fclose(fd);
+	free(file_content);
+	free(line);
+
+	// set base address
+	handle->base_addr = (long long)start;
+
+	return start;
+}
+
+long libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr, int *value)
 {
 	struct iovec local;
 	struct iovec remote;
