@@ -21,6 +21,7 @@ jobs:
             sudo pacman -S --noconfirm cmake gcc
             cmake -G "Unix Makefiles" -B build
             make -C build
+            ls
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
