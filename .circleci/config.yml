@@ -23,12 +23,6 @@ jobs:
             sudo pacman -S --noconfirm cmake gcc make base-devel curl
             sudo pacman -Ss procps
       - run:
-          name: "Download and run autorevision"
-          command: |
-            curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision.sh
-            chmod 777 autorevision.sh
-            ./autorevision.sh -t h > autorevision.h
-      - run:
           name: "Build library"
           command: |
             cmake -B build
