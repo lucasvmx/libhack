@@ -802,7 +802,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 
 	// read all contents of file, line by line
 	while((getline(&line, &line_len, fd)) > 0) {
-		sscanf(line,"%lx-%lx %31s %*Lx %*x:%*x %*Lu %s", &start, &end, flags, &pathname);
+		sscanf(line,"%lx-%lx %31s %*x %*x:%*x %*u %s", &start, &end, flags, &pathname[0]);
 
 		// The address must be readable
 		if((strstr(pathname, handle->process_name) != NULL) && flags[0] == 'r') {
@@ -817,7 +817,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	free(line);
 
 	// set base address
-	handle->base_addr = (long long)start;
+	handle->base_addr = (long)start;
 
 	return start;
 }
@@ -874,18 +874,6 @@ long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, in
 	}
 
 	return LIBHACK_OK;
-}
-
-long libhack_get_base_addr64(struct libhack_handle *handle)
-{
-	// Sanity checking
-	libhack_assert_or_return(handle != NULL, -1);
-
-	if(handle->base_addr == -1) {
-		
-	}
-
-	return handle->base_addr;
 }
 
 #endif
