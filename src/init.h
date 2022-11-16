@@ -177,6 +177,12 @@ struct libhack_handle {
 	 * 
 	 */
 	pid_t pid;
+	
+	/**
+	 * @brief Base address
+	 * 
+	 */
+	long base_addr;
 };
 
 struct libhack_handle *libhack_init(const char *process_name);

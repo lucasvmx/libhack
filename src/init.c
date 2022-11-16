@@ -149,6 +149,9 @@ struct libhack_handle *libhack_init(const char *process_name)
 	// Initializes value for process ID
 	lh->pid = -1;
 
+	// Initializes default base address
+	lh->base_addr = -1;
+
 	return lh;
 }
 
