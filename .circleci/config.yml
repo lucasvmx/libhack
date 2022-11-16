@@ -21,7 +21,6 @@ jobs:
           name: "Install development packages"
           command: |
             sudo pacman -S --noconfirm cmake gcc make base-devel
-            pacman -F libcrypt.so.1.1 core/libxcrypt-compat 4.4.28-2 usr/lib/libcrypt.so.1.1
       - run:
           name: "Build library"
           command: |
