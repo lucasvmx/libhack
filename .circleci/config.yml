@@ -30,13 +30,17 @@ jobs:
       - run:
           name: "Install development packages"
           command: |
-            ls -la
             sudo pacman -S --noconfirm cmake gcc make base-devel curl
             sudo pacman -Ss procps
       - run:
           name: "Build library"
           command: |
-            ls
+            cd libhack
+            curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+            ls -la
+            echo "======== RUNNING AUTOREVISION ===="
+            chmod 777 autorevision
+            ./autorevision -t h > autorevision.h
             cmake -B build
             make -C build
            
