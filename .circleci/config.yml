@@ -15,9 +15,11 @@ jobs:
     steps:
       - checkout
       - run:
-          name: "Install packages"
+          name: "Update packages"
+          command: sudo pacman -Syu --noconfirm
+      - run:
+          name: "Install development packages"
           command: |
-            sudo pacman -Sy --noconfirm
             sudo pacman -S --noconfirm cmake gcc make base-devel
             pacman -F libcrypt.so.1.1 core/libxcrypt-compat 4.4.28-2 usr/lib/libcrypt.so.1.1
       - run:
