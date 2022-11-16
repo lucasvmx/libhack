@@ -17,6 +17,10 @@ add_library(hack SHARED
     src/types.h
 )
 
+if (CMAKE_COMPILER_IS_GNUCC)
+    target_compile_options(hack PRIVATE -Wall -Wextra)
+endif()
+
 # configure target properties
 set_target_properties(hack
     PROPERTIES ARCHIVE_OUTPUT_NAME hack
