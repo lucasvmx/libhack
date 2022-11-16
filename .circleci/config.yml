@@ -28,7 +28,6 @@ jobs:
       - run:
           name: "Build library"
           command: |
-            cd libhack
             curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
             git branch
             echo "======== RUNNING AUTOREVISION ===="
