@@ -876,4 +876,29 @@ long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, in
 	return LIBHACK_OK;
 }
 
+bool libhack_process_is_running(struct libhack_handle *handle)
+{
+	pid_t pid;
+	char image_path[16];
+
+	memset(image_path, 0, sizeof(image_path));
+
+	// Sanity checking
+	libhack_assert_or_return(handle != NULL, false);
+
+	// Get process ID
+	pid = libhack_get_process_id(handle);
+	libhack_assert_or_return(handle != NULL, false);
+
+	// Build process path on filesystem
+	snprintf(image_path, arraySize(image_path), "/proc/%d", pid);
+	
+	// Check if path is readable by current process
+	if(access(image_path, R_OK) == -1) {
+		return false;
+	}
+
+	return true;
+}
+
 #endif

@@ -176,6 +176,8 @@ long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, in
 long libhack_get_base_addr(struct libhack_handle *handle);
 long libhack_get_base_addr64(struct libhack_handle *handle);
 
+bool libhack_process_is_running(struct libhack_handle *handle);
+
 #endif
 
 #ifdef __cplusplus
