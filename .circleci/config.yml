@@ -48,6 +48,7 @@ jobs:
       - run:
           name: "Install packages"
           command: apt-get -y install libprocps-dev gcc cmake make build-essential git curl
+      - checkout
       - run:
           name: "Build library"
           command: |
