@@ -5,7 +5,7 @@ version: 2.1
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
-  build:
+  build-manjaro-linux:
     # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
     # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
     docker:
@@ -35,10 +35,33 @@ jobs:
             ./autorevision -t h > autorevision.h
             cmake -B build
             make -C build
-           
+
+  build-debian-linux:
+    docker:
+      - image: debian:stable
+    steps:
+      - run:
+          name: "Update packages"
+          command: |
+            sudo apt update
+            sudo apt-get -y upgrade
+      - run:
+          name: "Install packages"
+          command: sudo apt-get -y install libprocps-dev gcc cmake make build-essential git curl
+      - run:
+          name: "Build library"
+          command: |
+            curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+            git branch
+            chmod 777 autorevision
+            ./autorevision -t h > autorevision.h
+            cmake -B build
+            make -C build
+
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   build-workflow:
     jobs:
-      - build
+      - build-manjaro-linux
+      - build-debian-linux
