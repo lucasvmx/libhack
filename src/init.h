@@ -15,6 +15,7 @@
 #include "consts.h"
 #include "types.h"
 #include <stdio.h>
+#include <sys/types.h>
 
 #if defined(__MINGW__) || defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -121,13 +122,6 @@ struct libhack_handle
 LIBHACK_API const char *libhack_get_platform();
 
 /**
- * @brief Gets the program version and return a string
- * 
- * @return const char* Program version
- */
-LIBHACK_API const char *libhack_getversion();
-
-/**
  * @brief Gets the commit UUID
  * 
  * @return LIBHACK_API const* UUID corresponding to commit
@@ -155,6 +149,13 @@ LIBHACK_API struct libhack_handle *libhack_init(const char *process_name);
  * @param handle Handle to libhack previously opened by libhack_init
  */
 LIBHACK_API void libhack_free(struct libhack_handle *handle);
+
+/**
+ * @brief Gets the program version and return a string
+ * 
+ * @return const char* Program version
+ */
+LIBHACK_API const char *libhack_getversion();
 
 /**
  * @brief Cleanup resources used by libhack
@@ -187,6 +188,7 @@ struct libhack_handle {
 
 struct libhack_handle *libhack_init(const char *process_name);
 void libhack_free(struct libhack_handle *lh);
+const char *libhack_getversion();
 
 #endif
 

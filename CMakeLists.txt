@@ -17,8 +17,22 @@ add_library(hack SHARED
     src/types.h
 )
 
+add_executable(unit_test
+    src/unit_test.c
+    src/main.c 
+    src/process.c 
+    src/init.c
+    src/process.h
+	src/logger.c
+    src/types.c
+)
+
+set(CMAKE_C_STANDARD 17)
+
 if (CMAKE_COMPILER_IS_GNUCC)
     target_compile_options(hack PRIVATE -Wall -Wextra)
+    target_compile_options(unit_test PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+    target_link_libraries(unit_test gcov)
 endif()
 
 # configure target properties
@@ -29,21 +43,14 @@ set_target_properties(hack
 # configure dll exporting
 add_definitions(-DDLL_EXPORT -DDEBUG)
 
-if(MSVC OR MINGW)
-    TARGET_LINK_LIBRARIES(hack psapi)
-    TARGET_LINK_LIBRARIES(hack shlwapi)
+if(WIN32)
+    message(STATUS "generating makefile for windows target")
+    target_link_libraries(hack psapi)
+    target_link_libraries(hack shlwapi)
+elseif(UNIX)
+    message(STATUS "generating makefile for unix target")
+    target_link_libraries(hack procps)
+    target_link_libraries(unit_test procps)
 endif()
 
-if(UNIX)
-    TARGET_LINK_LIBRARIES(hack procps)
-endif()
 
-# setup flags by compiler
-if(MINGW)
-    add_definitions(-DMINGW)
-	
-	# configure for 32 bit building
-    #set(CMAKE_C_FLAGS "-m32")
-elseif(MSVC)
-    add_definitions(-DVISUAL_STUDIO)
-endif()

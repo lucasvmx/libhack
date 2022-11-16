@@ -31,7 +31,7 @@
  * @brief Contains version number
  * 
  */
-static char version[VERSION_NUMBER_LEN];
+static char version[VERSION_NUMBER_LEN * 2];
 
 #ifdef __windows__
 LIBHACK_API const char *libhack_get_platform()
@@ -157,6 +157,16 @@ struct libhack_handle *libhack_init(const char *process_name)
 
 void libhack_free(struct libhack_handle *lh) {
 	free(lh);
+}
+
+const char *libhack_getversion()
+{
+	memset(version, 0, sizeof(version));
+
+	/* Print version number to variable */
+	snprintf(version, arraySize(version), "%s build %d", VCS_TAG, VCS_NUM);
+
+    return &version[0];
 }
 
 #endif
