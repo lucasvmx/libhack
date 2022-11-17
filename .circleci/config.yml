@@ -5,7 +5,7 @@ version: 2.1
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
-  build:
+  build-manjaro-linux:
     # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
     # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
     docker:
@@ -19,14 +19,7 @@ jobs:
       - run:
           name: "Install git"
           command: sudo pacman -S --noconfirm git
-      - run:
-          name: "Checkout"
-          command: |
-            git clone https://github.com/lucasvmx/libhack.git
-            cd libhack
-            git checkout dev
-            git branch
-      #- checkout
+      - checkout
       - run:
           name: "Install development packages"
           command: |
@@ -35,18 +28,41 @@ jobs:
       - run:
           name: "Build library"
           command: |
-            cd libhack
             curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
-            ls -la
+            git branch
             echo "======== RUNNING AUTOREVISION ===="
             chmod 777 autorevision
             ./autorevision -t h > autorevision.h
             cmake -B build
             make -C build
-           
+
+  build-debian-linux:
+    docker:
+      - image: debian:stable
+    steps:
+      - run:
+          name: "Update packages"
+          command: |
+            apt update
+            apt-get -y upgrade
+      - run:
+          name: "Install packages"
+          command: apt-get -y install libprocps-dev gcc cmake make build-essential git curl
+      - checkout
+      - run:
+          name: "Build library"
+          command: |
+            curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+            git branch
+            chmod 777 autorevision
+            ./autorevision -t h > autorevision.h
+            cmake -B build
+            make -C build
+
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   build-workflow:
     jobs:
-      - build
+      - build-manjaro-linux
+      - build-debian-linux

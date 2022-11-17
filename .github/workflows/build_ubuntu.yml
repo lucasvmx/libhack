@@ -1,11 +1,13 @@
-name: Build - Linux
+name: Build
 
 on: [push, pull_request]
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.systems }}
+    strategy:
+        matrix:
+          systems: [ubuntu-20.04,ubuntu-22.04]
 
     steps:
     - uses: actions/checkout@v3

@@ -1,11 +1,13 @@
-name: Build - Windows
+name: Build
 
 on: [push, pull_request]
 
 jobs:
   build:
-
-    runs-on: windows-latest
+    runs-on: ${{ matrix.systems }}
+    strategy:
+      matrix:
+        systems: [windows-latest,windows-2019]
 
     steps:
     - uses: actions/checkout@v3
