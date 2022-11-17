@@ -8,7 +8,7 @@ jobs:
     strategy:
         matrix:
           systems: [ubuntu-20.04,ubuntu-22.04]
-  
+
     steps:
     - uses: actions/checkout@v3
     - name: Configure CMake

@@ -4,9 +4,9 @@
  * @brief Functions used to operate with processes
  * @version 0.1
  * @date 2020-09-21
- * 
+ *
  * @copyright Copyright (c) 2020
- * 
+ *
  */
 
 #ifndef __MINGW__
@@ -46,7 +46,7 @@
 
 /**
  * @brief Checking types
- * 
+ *
  */
 enum CHECK_TYPES {
 	WRITE_CHECK,
@@ -56,13 +56,13 @@ enum CHECK_TYPES {
 #ifdef __windows__
 /**
  * @brief Pointer to IsWow64Process function
- * 
+ *
  */
 typedef bool (*pIsWow64Process)(HANDLE hProcess, bool *isWow64);
 
 /**
  * @brief Checks if the specified handle can be used to specified 'type' access
- * 
+ *
  * @param handle Handle to libhack
  * @param type Check to be performed
  * @return true On success
@@ -83,7 +83,7 @@ static bool libhack_perform_check(struct libhack_handle *handle, enum CHECK_TYPE
 
 /**
  * @brief Gets the number of modules loaded by specified process
- * 
+ *
  * @param handle handle to libhack
  * @param b64bit TRUE if the process is 64 bit
  * @return long Number of modules loaded
@@ -124,7 +124,7 @@ bool libhack_open_process(struct libhack_handle *handle)
 
 			// Setup flags
 			handle->bProcessIsOpen = TRUE;
-			
+
 			bIs64 = libhack_is64bit_process(handle, &err);
 			if(err == ERROR_SUCCESS) {
 				libhack_debug("%s is 64-bit: %s", handle->process_name, bIs64 ? "yes" : "no");
@@ -137,7 +137,7 @@ bool libhack_open_process(struct libhack_handle *handle)
 		return false;
 	}
 
-	/* Handle already opened */	
+	/* Handle already opened */
 	SetLastError(ERROR_ALREADY_INITIALIZED);
 
 	return true;
@@ -155,7 +155,7 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 	{
 		if(!handle->pid)
 			return GetProcessId(handle->hProcess);
-		
+
 		return handle->pid;
 	}
 
@@ -166,7 +166,7 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 		libhack_debug("Failed to allocate memory");
 		return 0;
 	}
-	
+
 	/* Create a snapshot */
 	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if(!hSnapshot)
@@ -183,7 +183,7 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 	/* Get process exe name length */
 	max_count = strlen(handle->process_name);
 
-	do 
+	do
 	{
 		if(strnicmp(entry->szExeFile, handle->process_name, max_count) == 0)
 		{
@@ -263,7 +263,7 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
 
 	/* Initialize memory */
     RtlSecureZeroMemory(moduleName, sizeof(moduleName));
-	
+
     /* Check if we have a base address already */
     if(handle->base_addr) {
 		return handle->base_addr;
@@ -440,7 +440,7 @@ LIBHACK_API bool libhack_process_is_running(struct libhack_handle *handle)
 		libhack_debug("Failed to get process exit code");
 		return FALSE;
 	}
-	
+
 	return state == STILL_ACTIVE ? TRUE : FALSE;
 }
 
@@ -503,7 +503,7 @@ LIBHACK_API bool libhack_inject_dll(struct libhack_handle *handle, const char *d
 
 	libhack_assert_or_return(handle, FALSE);
 	libhack_assert_or_return(dll_path, FALSE);
-	
+
 	if(!handle->bProcessIsOpen) {
 		libhack_debug("You need to call libhack_open_process() before trying to inject dll on it");
 		return false;
@@ -539,7 +539,7 @@ LIBHACK_API bool libhack_inject_dll(struct libhack_handle *handle, const char *d
 #endif
 
 	// Creates the remote thread on target process that will load library
-	hRemoteThread = CreateRemoteThread(handle->hProcess, NULL, 0, 
+	hRemoteThread = CreateRemoteThread(handle->hProcess, NULL, 0,
 	(LPTHREAD_START_ROUTINE)GetProcAddress(hKernel32, "LoadLibraryA"),
 	pDllPath, 0, &threadId);
 
@@ -584,10 +584,10 @@ LIBHACK_API DWORD libhack_getsubmodule_addr(struct libhack_handle *handle, const
 
 	if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, filter))
 	{
-		for(long i = 0; i < count; i++) 
+		for(long i = 0; i < count; i++)
 		{
-			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, arraySize(basename))) 
-			{	
+			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, arraySize(basename)))
+			{
 				// Convert basename to lowercase
 				strlwr(basename);
 
@@ -631,9 +631,9 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
 
 	if(K32EnumProcessModulesEx(handle->hProcess, modules, count, &needed, filter))
 	{
-		for(long i = 0; i < count; i++) 
+		for(long i = 0; i < count; i++)
 		{
-			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, sizeof(basename))) 
+			if(K32GetModuleBaseNameA(handle->hProcess, modules[i], basename, sizeof(basename)))
 			{
 				strlwr(basename);
 
@@ -672,11 +672,11 @@ static bool fIsWow64Process(HANDLE hProcess, DWORD *error)
         {
 			// Set error
 			*error = GetLastError();
-			
+
 			// Show debug message
 			libhack_err("Failed to call IsWow64Process");
 			FreeLibrary(kernel32);
-			
+
             return false;
         }
     }
@@ -691,7 +691,7 @@ static bool fIsWow64Process(HANDLE hProcess, DWORD *error)
 }
 
 bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *error)
-{	
+{
 	BOOL bWow64;
 
 	// Call function
@@ -709,7 +709,7 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 
 	// Sanity check
 	libhack_assert_or_return(handle != NULL, -1);
-	
+
 	if(handle->pid == -1) {
 		proc = openproc(PROC_FILLMEM | PROC_FILLSTAT | PROC_FILLSTATUS);
 
@@ -723,12 +723,12 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 
 		// Iterates through process list
 		libhack_notice("reading process list ...");
-	
+
 		while (readproc(proc, &proc_info) != NULL) {
 			if(strncmp(proc_info.cmd, handle->process_name, strlen(proc_info.cmd)) == 0) {
 				handle->pid = proc_info.tid;
 				libhack_notice("pid of %s: %hi", proc_info.cmd, handle->pid);
-				libhack_debug("start code, end code, start stack: %#lx, %#lx, %#lx", 
+				libhack_debug("start code, end code, start stack: %#lx, %#lx, %#lx",
 				proc_info.start_code, proc_info.end_code, proc_info.start_stack);
 				break;
 			}
@@ -744,7 +744,7 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 
 long libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr, int *value)
 {
-	return libhack_read_int_from_addr64(handle, (DWORD64)addr, value);	
+	return libhack_read_int_from_addr64(handle, (DWORD64)addr, value);
 }
 
 long libhack_get_base_addr(struct libhack_handle *handle)
@@ -802,7 +802,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 
 	// read all contents of file, line by line
 	while((getline(&line, &line_len, fd)) > 0) {
-		sscanf(line,"%lx-%lx %31s %*x %*x:%*x %*u %s", &start, &end, flags, &pathname[0]);
+		sscanf(line,"%lx-%lx %31s %*x %*x:%*x %*u %255s", &start, &end, flags, &pathname[0]);
 
 		// The address must be readable
 		if((strstr(pathname, handle->process_name) != NULL) && flags[0] == 'r') {
@@ -892,11 +892,15 @@ bool libhack_process_is_running(struct libhack_handle *handle)
 
 	// Build process path on filesystem
 	snprintf(image_path, arraySize(image_path), "/proc/%d", pid);
-	
+
 	// Check if path is readable by current process
-	if(access(image_path, R_OK) == -1) {
+	DIR *d = opendir(image_path);
+	if(d == NULL) {
+		libhack_err("could not open %s", image_path);
 		return false;
 	}
+
+	closedir(d);
 
 	return true;
 }
