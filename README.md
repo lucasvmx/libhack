@@ -40,6 +40,7 @@
 ![build][debian-circle-ci-url]
 ![license][license-url]
 ![code-quality][code-quality-url]
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=lucasvmx_libhack&metric=bugs)](https://sonarcloud.io/summary/new_code?id=lucasvmx_libhack)
 
 <!-- PROJECT LOGO -->
 <br />
