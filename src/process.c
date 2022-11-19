@@ -44,6 +44,8 @@
 #include "process.h"
 #include "logger.h"
 
+#undef UNICODE
+
 /**
  * @brief Checking types
  *
@@ -271,6 +273,8 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
 
 	count = libhack_get_modules_count(handle, filter);
 
+	libhack_debug("count of 64-bit modules: %ld", count);
+
 	// Check if previous calling failed
 	libhack_assert_or_return(count > 0, 0);
 
@@ -290,6 +294,8 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
 
 			// Convert module name to lowercase
 			strlwr(moduleName);
+
+			libhack_debug("Module found: %s", moduleName);
 
 			// Compare module name
 			if(strnicmp(moduleName, handle->process_name, strlen(handle->process_name)) == 0)
@@ -314,6 +320,26 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
 	libhack_debug("We failed to get process base address: %lu", GetLastError());
 
 	return 0;
+}
+
+LIBHACK_API __int64 libhack_read_int64_from_addr64(struct libhack_handle *handle, DWORD64 addr)
+{
+	__int64 value = -1;
+	SIZE_T readed;
+
+	// Sanity check
+	if(!libhack_perform_check(handle, READ_CHECK)) {
+		libhack_debug("(%s:%d) Check failed! Either process is not opened or handle is invalid", __FILE__, __LINE__);
+		return -1;
+	}
+
+	/* Read memory at the specified address */
+	if(!ReadProcessMemory(handle->hProcess, (const void*)addr, (void*)&value, sizeof(__int64), &readed)) {
+		libhack_debug("Failed to read memory: %lu", GetLastError());
+		return -1;
+	}
+
+	return readed ? value : -1;
 }
 
 LIBHACK_API int libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr)
@@ -610,6 +636,9 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
 	DWORD64 addr = 0;
 	unsigned short filter = LIST_MODULES_64BIT;
 
+	libhack_debug("handle: %s", (handle == NULL) ? "NULL":"NOT NULL");
+	libhack_debug("process is open: %s", handle->bProcessIsOpen ? "true":"false");
+
 	// Parameter validation
 	libhack_assert_or_return(handle, 0);
 	libhack_assert_or_return(handle->bProcessIsOpen, 0);
@@ -646,6 +675,43 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64(struct libhack_handle *handle, c
 	}
 
 	free(modules);
+
+	return addr;
+}
+
+LIBHACK_API DWORD64 libhack_getsubmodule_addr64v2(struct libhack_handle *handle, const char *module_name)
+{
+	HANDLE hSnapshot;
+	MODULEENTRY32 me;
+	DWORD64 addr = 0;
+
+	// Sanity check
+	libhack_assert_or_return(handle && module_name, 0);
+	libhack_assert_or_return(strlen(module_name) <= arraySize(me.szModule), 0);
+
+	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, handle->pid);
+	if(hSnapshot == INVALID_HANDLE_VALUE) {
+		libhack_err("snapshot capture failed for %ld (%s)", handle->pid, handle->process_name);
+		return 0;
+	}
+
+	if(!Module32First(hSnapshot, &me)) {
+		libhack_err("failed to capture first module of %d", handle->pid);
+		CloseHandle(hSnapshot);
+		return 0;
+	}
+
+	do {
+		if(strnicmp(module_name, me.szModule, strlen(module_name)) == 0) {
+			libhack_debug("address found for %s: %lx", module_name, (DWORD64)&me.modBaseAddr[0]);
+			addr = (DWORD64)&me.modBaseAddr[0];
+			break;
+		}
+
+	} while(Module32Next(hSnapshot, &me));
+
+	// cleanup resources
+	CloseHandle(hSnapshot);
 
 	return addr;
 }
