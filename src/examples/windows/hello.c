@@ -10,7 +10,7 @@
  */
 
 #include <windows.h>
-#include <process.h>
+#include "../../process.h"
 
 static void __stdcall ShowMessage()
 {

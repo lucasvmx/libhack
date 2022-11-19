@@ -12,7 +12,9 @@
 #ifndef MINGW_ALIASES_H
 #define MINGW_ALIASES_H
 
+#if defined(__MINGW__) || defined(_WIN32) || defined(_WIN64)
 #define K32EnumProcessModulesEx(p1,p2,p3,p4,p5) EnumProcessModulesEx(p1,p2,p3,p4,p5)
 #define K32GetModuleBaseNameA(p1,p2,p3,p4)		GetModuleBaseNameA(p1,p2,p3,p4)
+#endif
 
 #endif

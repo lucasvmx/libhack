@@ -9,10 +9,20 @@
  * 
  */
 
+#include "types.h"
+
+#if defined(__MINGW__) || defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
+#endif
+
+#ifdef __linux__
+#include <errno.h>
+#endif
 #include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include "init.h"
 #include "logger.h"
 #include "../autorevision.h"
@@ -21,8 +31,9 @@
  * @brief Contains version number
  * 
  */
-static char version[VERSION_NUMBER_LEN];
+static char version[VERSION_NUMBER_LEN * 2];
 
+#ifdef __windows__
 LIBHACK_API const char *libhack_get_platform()
 {
 #if defined(__x86__)
@@ -36,7 +47,11 @@ LIBHACK_API const char *libhack_get_platform()
 
 LIBHACK_API const char *libhack_getversion()
 {
+#ifdef __windows__
 	RtlSecureZeroMemory(version, sizeof(version));
+#else
+	memset(version, 0, sizeof(version)/sizeof(version[0]));
+#endif
 
 	/* Print version number to variable */
 	snprintf(version, arraySize(version), "%s build %d", VCS_TAG, VCS_NUM);
@@ -54,17 +69,17 @@ LIBHACK_API const char *libhack_get_utc_build_date()
 	return VCS_DATE;
 }
 
-static BOOL libhack_check_version()
+static bool libhack_check_version()
 {
 	const char *uuid = libhack_getuuid();
 
 	if(strncmp(uuid, VCS_UUID, strlen(VCS_UUID)) != 0) {
 		libhack_debug("Version mismatch: %s build %d != %s\n", VCS_TAG, VCS_NUM, libhack_getversion());
 		libhack_debug("This version has been built on %s\n", VCS_DATE);
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 struct libhack_handle *libhack_init(const char *process_name)
@@ -79,6 +94,7 @@ struct libhack_handle *libhack_init(const char *process_name)
 		return NULL;
 
 	/* Allocate memory to store handle data */
+#ifdef __windows__
 	lh = (struct libhack_handle*)malloc(sizeof(struct libhack_handle));
 	if(!lh)
 	{
@@ -88,6 +104,12 @@ struct libhack_handle *libhack_init(const char *process_name)
 
 	// Initialize memory
 	RtlSecureZeroMemory(lh, sizeof(struct libhack_handle));
+#else
+	lh = (struct libhack_handle*)calloc(1, sizeof(struct libhack_handle));
+	if(!lh) {
+		libhack_debug("Failed to allocate memory");
+	}
+#endif
 
 	/* Copy process name to internal variable */
 	strncpy(lh->process_name, process_name, sizeof(lh->process_name) / sizeof(lh->process_name[0]));
@@ -104,3 +126,47 @@ void libhack_free(struct libhack_handle *lh_handle)
 {
 	free(lh_handle);
 }
+
+#elif defined(__linux__)
+
+struct libhack_handle *libhack_init(const char *process_name)
+{
+	struct libhack_handle *lh = NULL;
+
+	// Sanity checking
+	if(!process_name)
+		return NULL;
+
+	lh = (struct libhack_handle*)calloc(1, sizeof(struct libhack_handle));
+	if(!lh) {
+		libhack_debug("[ERROR] Failed to initialize libhack: %d\n", errno);
+		return NULL;
+	}
+
+	// Copy process name to struct
+	strncpy(lh->process_name, process_name, strlen(process_name));
+
+	// Initializes value for process ID
+	lh->pid = -1;
+
+	// Initializes default base address
+	lh->base_addr = -1;
+
+	return lh;
+}
+
+void libhack_free(struct libhack_handle *lh) {
+	free(lh);
+}
+
+const char *libhack_getversion()
+{
+	memset(version, 0, sizeof(version));
+
+	/* Print version number to variable */
+	snprintf(version, arraySize(version), "%s build %d", VCS_TAG, VCS_NUM);
+
+    return &version[0];
+}
+
+#endif

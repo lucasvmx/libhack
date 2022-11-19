@@ -1,0 +1,6 @@
+#ifndef LIBHACK_STATUS_CODES_H
+#define LIBHACK_STATUS_CODES_H
+
+#define LIBHACK_OK 0
+
+#endif

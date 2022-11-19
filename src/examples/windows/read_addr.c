@@ -1,15 +1,15 @@
 /**
  * @file read_addr.c
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief Demonstração de uso da libhack para escrever um valor na memória de outro programa
+ * @brief Demonstração de uso da libhack para ler um valor da memória de outro programa
  * @date 2020-08-18
  * 
  * @copyright Copyright (c) 2020
  * 
  */
 
-#include "../init.h"
-#include "../process.h"
+#include "../../init.h"
+#include "../../process.h"
 
 int main()
 {
@@ -47,16 +47,13 @@ int main()
 
     printf("Base address of %s: %#x\n", hack->process_name, baseAddr);
 
-    // Set the value
-    value = 250;
-
     /*
-        Write the value to memory address in a offset of
+        Here we are reading the memory at address with a offset
         0x4c from process base address
     */
-    libhack_write_int_to_addr(hack, baseAddr + 0x4c, value);
+    value = libhack_read_int_from_addr(hack, baseAddr + 0x4c);
 
-    printf("Value written to address %#x: %d\n", baseAddr + 0x4c, value);
+    printf("Value readed from address %#x: %d\n", baseAddr + 0x4c, value);
 
     /*
         Cleanup resources used by library

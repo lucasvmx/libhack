@@ -1,0 +1,37 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.systems }}
+    strategy:
+        matrix:
+          systems: [ubuntu-20.04,ubuntu-22.04]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Configure CMake
+      run: cmake -G "Unix Makefiles" -B build
+
+    - name: Generate revision information
+      shell: bash
+      run: |
+        sudo apt-get -y install autorevision
+        autorevision -t h > autorevision.h
+
+    - name: Build libhack
+      run: |
+        sudo apt-get install libprocps-dev
+        make
+      working-directory: build
+
+    - name: Configure CMake (examples)
+      run: |
+       cp ../../../build/*.so libhack.so
+       cmake -G "Unix Makefiles" -B build
+      working-directory: src/examples/linux
+
+    - name: Build examples
+      run: make
+      working-directory: src/examples/linux/build
