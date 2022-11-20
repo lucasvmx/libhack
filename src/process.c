@@ -929,7 +929,7 @@ long libhack_write_int_to_addr64(const struct libhack_handle *handle, DWORD64 ad
 
 	local.iov_base = &value;
 	local.iov_len = sizeof(value);
-	remote.iov_base = (void*)addr;
+	remote.iov_base = &addr;
 	remote.iov_len = sizeof(value);
 
 	libhack_notice("writing address %lx on %d", addr, handle->pid);
@@ -986,7 +986,7 @@ int libhack_write_string_to_addr64(const struct libhack_handle *handle, DWORD64 
 
 	local.iov_base = &string;
 	local.iov_len = string_len;
-	remote.iov_base = (void*)addr;
+	remote.iov_base = &addr;
 	remote.iov_len = string_len;
 
 	libhack_notice("writing address %lx on %d", addr, handle->pid);
