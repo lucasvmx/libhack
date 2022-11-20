@@ -808,7 +808,7 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 	return handle->pid;
 }
 
-long libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr, int *value)
+long libhack_read_int_from_addr(const struct libhack_handle *handle, DWORD addr, int *value)
 {
 	return libhack_read_int_from_addr64(handle, (DWORD64)addr, value);
 }
@@ -893,7 +893,7 @@ long libhack_get_base_addr64(struct libhack_handle *handle)
 	return libhack_get_base_addr(handle);
 }
 
-long libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr, int *value)
+long libhack_read_int_from_addr64(const struct libhack_handle *handle, DWORD64 addr, int *value)
 {
 	struct iovec local;
 	struct iovec remote;
@@ -915,12 +915,12 @@ long libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr, i
 	return LIBHACK_OK;
 }
 
-long libhack_write_int_to_addr(struct libhack_handle *handle, DWORD addr, int value)
+long libhack_write_int_to_addr(const struct libhack_handle *handle, DWORD addr, int value)
 {
 	return libhack_write_int_to_addr64(handle, (DWORD64)addr, value);
 }
 
-long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value) {
+long libhack_write_int_to_addr64(const struct libhack_handle *handle, DWORD64 addr, int value) {
 	struct iovec local;
 	struct iovec remote;
 
@@ -971,12 +971,12 @@ bool libhack_process_is_running(struct libhack_handle *handle)
 	return true;
 }
 
-int libhack_write_string_to_addr(struct libhack_handle *handle, DWORD addr, const char *string, size_t len)
+int libhack_write_string_to_addr(const struct libhack_handle *handle, DWORD addr, const char *string, size_t len)
 {
 	return libhack_write_string_to_addr64(handle, (DWORD64)addr, string, len);
 }
 
-int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len)
+int libhack_write_string_to_addr64(const struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len)
 {
 	struct iovec local;
 	struct iovec remote;
@@ -991,7 +991,7 @@ int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, 
 
 	libhack_notice("writing address %lx on %d", addr, handle->pid);
 	ssize_t written = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
-	if(written == -1 || (written != string_len)) {
+	if(written == -1 || (written != (ssize_t)string_len)) {
 		libhack_debug("Failed to write memory: %d (addr: %llx)", errno, addr);
 		return errno;
 	}

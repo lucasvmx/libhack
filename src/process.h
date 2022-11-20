@@ -186,18 +186,18 @@ pid_t libhack_get_process_id(struct libhack_handle *handle);
 
 
 
-long libhack_read_int_from_addr(struct libhack_handle *handle, DWORD addr, int *value);
-long libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr, int *value);
-long libhack_write_int_to_addr(struct libhack_handle *handle, DWORD addr, int value);
-long libhack_write_int_to_addr64(struct libhack_handle *handle, DWORD64 addr, int value);
+long libhack_read_int_from_addr(const struct libhack_handle *handle, DWORD addr, int *value);
+long libhack_read_int_from_addr64(const struct libhack_handle *handle, DWORD64 addr, int *value);
+long libhack_write_int_to_addr(const struct libhack_handle *handle, DWORD addr, int value);
+long libhack_write_int_to_addr64(const struct libhack_handle *handle, DWORD64 addr, int value);
 
 long libhack_get_base_addr(struct libhack_handle *handle);
 long libhack_get_base_addr64(struct libhack_handle *handle);
 
 bool libhack_process_is_running(struct libhack_handle *handle);
 
-int libhack_write_string_to_addr(struct libhack_handle *handle, DWORD addr, const char *string, size_t string_len);
-int libhack_write_string_to_addr64(struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len);
+int libhack_write_string_to_addr(const struct libhack_handle *handle, DWORD addr, const char *string, size_t string_len);
+int libhack_write_string_to_addr64(const struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len);
 
 #endif
 
