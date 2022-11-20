@@ -860,7 +860,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 		return errno;
 	}
 
-	unsigned long start, end;
+	unsigned long start = 0, end = 0;
 	char flags[32];
 	char pathname[BUFLEN];
 
