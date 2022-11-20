@@ -774,7 +774,7 @@ pid_t libhack_get_process_id(struct libhack_handle *handle)
 	proc_t proc_info;
 
 	// Sanity check
-	libhack_assert_or_return(handle != NULL, -1);
+	libhack_assert_or_return(handle != NULL, -1)
 
 	if(handle->pid == -1) {
 		proc = openproc(PROC_FILLMEM | PROC_FILLSTAT | PROC_FILLSTATUS);
@@ -823,7 +823,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	struct stat st;
 
 	// Santity checking
-	libhack_assert_or_return(handle != NULL, -1);
+	libhack_assert_or_return(handle != NULL, -1)
 
 	// Get process ID
 	if(handle->pid == -1) {
@@ -838,7 +838,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	}
 
 	line = (char*)malloc(sizeof(char) * line_len);
-	libhack_assert_or_return(line != NULL, -1);
+	libhack_assert_or_return(line != NULL, -1)
 
 	snprintf(maps_path, arraySize(maps_path), "/proc/%d/maps", pid);
 
@@ -850,7 +850,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	}
 
 	file_content = (char*)malloc(sizeof(char) * st.st_size);
-	libhack_assert_or_return(file_content != NULL, -1);
+	libhack_assert_or_return(file_content != NULL, -1)
 
 	FILE *fd = fopen(maps_path, "r");
 	if(fd == NULL) {
@@ -899,7 +899,7 @@ long libhack_read_int_from_addr64(const struct libhack_handle *handle, DWORD64 a
 	struct iovec remote;
 
 	// Sanity checking
-	libhack_assert_or_return(handle != NULL && value != NULL, -1);
+	libhack_assert_or_return(handle != NULL && value != NULL, -1)
 
 	local.iov_base = value;
 	local.iov_len = sizeof(int);
@@ -925,7 +925,7 @@ long libhack_write_int_to_addr64(const struct libhack_handle *handle, DWORD64 ad
 	struct iovec remote;
 
 	// Sanity check
-	libhack_assert_or_return(handle != NULL, -1);
+	libhack_assert_or_return(handle != NULL, -1)
 
 	local.iov_base = &value;
 	local.iov_len = sizeof(value);
@@ -950,11 +950,11 @@ bool libhack_process_is_running(struct libhack_handle *handle)
 	memset(image_path, 0, sizeof(image_path));
 
 	// Sanity checking
-	libhack_assert_or_return(handle != NULL, false);
+	libhack_assert_or_return(handle != NULL, false)
 
 	// Get process ID
 	pid = libhack_get_process_id(handle);
-	libhack_assert_or_return(handle != NULL, false);
+	libhack_assert_or_return(handle != NULL, false)
 
 	// Build process path on filesystem
 	snprintf(image_path, arraySize(image_path), "/proc/%d", pid);
