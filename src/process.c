@@ -26,6 +26,7 @@
 #elif defined(__linux__)
 #define _GNU_SOURCE
 #define __USE_GNU
+#define __USE_POSIX
 #include <sys/uio.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -853,11 +854,21 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	file_content = (char*)malloc(sizeof(char) * st.st_size);
 	libhack_assert_or_return(file_content != NULL, -1)
 
-	FILE *fd = fopen(maps_path, "r");
-	if(fd == NULL) {
+	int fd = open(maps_path, O_RDONLY);
+	if(fd == -1) {
+		// cleanup resources
+		free(line);
+		free(file_content);
+		return errno;
+	}
+
+
+	FILE *fp = fdopen(fd, "r");
+	if(fp == NULL) {
 		libhack_err("failed to open %s: %d\n", maps_path, errno);
 		free(line);
 		free(file_content);
+		close(fd);
 		return errno;
 	}
 
@@ -868,7 +879,7 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	memset(flags, 0, sizeof(flags));
 
 	// read all contents of file, line by line
-	while((getline(&line, &line_len, fd)) > 0) {
+	while((getline(&line, &line_len, fp)) > 0) {
 		sscanf(line,"%lx-%lx %31s %*x %*x:%*x %*u %255s", &start, &end, flags, &pathname[0]);
 
 		// The address must be readable
@@ -879,7 +890,8 @@ long libhack_get_base_addr(struct libhack_handle *handle)
 	}
 
 	// close file and release resources
-	fclose(fd);
+	fclose(fp);
+	close(fd);
 	free(file_content);
 	free(line);
 
