@@ -199,6 +199,8 @@ bool libhack_process_is_running(struct libhack_handle *handle);
 int libhack_write_string_to_addr(const struct libhack_handle *handle, DWORD addr, const char *string, size_t string_len);
 int libhack_write_string_to_addr64(const struct libhack_handle *handle, DWORD64 addr, const char *string, size_t string_len);
 
+__int64_t libhack_read_int64_from_addr64(const struct libhack_handle *handle, DWORD64 addr);
+
 #endif
 
 #ifdef __cplusplus
