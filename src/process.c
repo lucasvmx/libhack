@@ -25,6 +25,7 @@
 #include <io.h>
 #elif defined(__linux__)
 #define _GNU_SOURCE
+#define __USE_GNU
 #include <sys/uio.h>
 #include <dlfcn.h>
 #include <errno.h>

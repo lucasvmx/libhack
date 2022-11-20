@@ -5,6 +5,8 @@
 #ifdef __linux__
 #include <pthread.h>
 #include <stdbool.h>
+#elif __windows__
+#include <stdint.h>
 #endif
 
 #ifdef __linux__
