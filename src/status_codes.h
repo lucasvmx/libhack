@@ -11,7 +11,7 @@
 #define LIBHACK_OK 0
 
 #ifdef __windows__
-#define __int32_t int32_t
+typedef __int32_t int32_t
 #endif
 
 __int32_t libhack_get_last_error();
