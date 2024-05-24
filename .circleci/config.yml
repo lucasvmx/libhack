@@ -23,7 +23,7 @@ jobs:
       - run:
           name: "Install development packages"
           command: |
-            sudo pacman -S --noconfirm cmake gcc make base-devel curl
+            sudo pacman -S --noconfirm cmake gcc make base-devel curl libprocps
             sudo pacman -Ss procps
       - run:
           name: "Build library"
@@ -47,7 +47,7 @@ jobs:
             apt-get -y upgrade
       - run:
           name: "Install packages"
-          command: apt-get -y install libprocps-dev gcc cmake make build-essential git curl
+          command: apt-get -y install libprocps gcc cmake make build-essential git curl
       - checkout
       - run:
           name: "Build library"
