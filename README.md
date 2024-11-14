@@ -206,12 +206,13 @@ correcly.
 
 _For more examples, please refer to examples below_
 
-- [Reading a memory address](src/examples/read_addr.c)
-- [Writing to a memory address](src/examples/write_addr.c)
-- [Getting PID from a process](src/examples/pid.c)
-- [Injecting DLL into another process](src/examples/dll_inject.c)
-  - [Dll Source Code](src/examples/hello.c)
- 
+- [Reading a memory address - Windows](src/examples/windows/read_addr.c)
+- [Writing to a memory address - Windows](src/examples/windows/write_addr.c)
+- [Getting PID from a process - Windows](src/examples/windows/pid.c)
+- [Injecting DLL into another process - Windows](src/examples/windows/dll_inject.c)
+  - [Dll Source Code - Windows](src/examples/windows/hello.c)
+- [Writing to a memory address - Linux](src/examples/linux/write_addr.c)
+
 <!-- ROADMAP -->
 ## Roadmap
 
