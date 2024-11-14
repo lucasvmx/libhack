@@ -17,12 +17,12 @@
 #include "status_codes.h"
 
 #ifdef __windows__
+#include <windows.h>
 #include <dbghelp.h>
 #include <io.h>
 #include <psapi.h>
 #include <shlwapi.h>
 #include <tlhelp32.h>
-#include <windows.h>
 
 #elif defined(__linux__)
 #define _GNU_SOURCE
