@@ -38,7 +38,7 @@ jobs:
 
   build-debian-linux:
     docker:
-      - image: debian:stable
+      - image: debian:bullseye
     steps:
       - run:
           name: "Update packages"
