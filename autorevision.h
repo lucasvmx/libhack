@@ -5,20 +5,20 @@
 #define VCS_TYPE		"git"
 #define VCS_BASENAME	"libhack"
 #define VCS_UUID		"9156326fc1af8274445475661bc0c19952a515f4"
-#define VCS_NUM			138
-#define VCS_DATE		"2022-11-16T08:23:34Z"
-#define VCS_BRANCH		"dev"
-#define VCS_TAG			"v0.3.0"
+#define VCS_NUM			221
+#define VCS_DATE		"2024-11-14T03:01:16Z"
+#define VCS_BRANCH		"master"
+#define VCS_TAG			"v0.4.2"
 #define VCS_TAG_OPENPGP	""
-#define VCS_TICK		46
+#define VCS_TICK		0
 #define VCS_EXTRA		""
 
-#define VCS_ACTION_STAMP	"2022-11-16T08:23:34Z!lucas.engen.cc@gmail.com"
-#define VCS_FULL_HASH		"093568d773f68f41050a0d85f65d6392af738a49"
+#define VCS_ACTION_STAMP	"2024-11-14T03:01:16Z!lucas.engen.cc@gmail.com"
+#define VCS_FULL_HASH		"a6f878665f81e64e46f3e5cad06f33284c38635b"
 #define VCS_COMMIT_OPENPGP	""
-#define VCS_SHORT_HASH		"093568d"
+#define VCS_SHORT_HASH		"a6f8786"
 
-#define VCS_WC_MODIFIED		0
+#define VCS_WC_MODIFIED		1
 
 #endif
 

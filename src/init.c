@@ -1,12 +1,12 @@
 /**
  * @file hack.c
  * @author Lucas Vieira (lucas.engen.cc@gmail.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2020-07-18
- * 
+ *
  * @copyright Copyright (c) 2020
- * 
+ *
  */
 
 #include "types.h"
@@ -30,7 +30,7 @@
 
 /**
  * @brief Contains version number
- * 
+ *
  */
 static char version[VERSION_NUMBER_LEN * 2];
 
@@ -38,136 +38,140 @@ static char version[VERSION_NUMBER_LEN * 2];
 LIBHACK_API const char *libhack_get_platform()
 {
 #if defined(__x86__)
-	return "32-bit";
+    return "32-bit";
 #elif defined(__x64__)
-	return "64-bit";
+    return "64-bit";
 #else
-	return "unknown";
+    return "unknown";
 #endif
 }
 
 LIBHACK_API const char *libhack_getversion()
 {
 #ifdef __windows__
-	RtlSecureZeroMemory(version, sizeof(version));
+    RtlSecureZeroMemory(version, sizeof(version));
 #else
-	memset(version, 0, sizeof(version)/sizeof(version[0]));
+    memset(version, 0, sizeof(version) / sizeof(version[0]));
 #endif
 
-	/* Print version number to variable */
-	snprintf(version, arraySize(version), "%s build %d", VCS_TAG, VCS_NUM);
+    /* Print version number to variable */
+    snprintf(version, arraySize(version), "%s build %d", VCS_TAG, VCS_NUM);
 
     return &version[0];
 }
 
 LIBHACK_API const char *libhack_getuuid()
 {
-	return VCS_UUID;
+    return VCS_UUID;
 }
 
 LIBHACK_API const char *libhack_get_utc_build_date()
 {
-	return VCS_DATE;
+    return VCS_DATE;
 }
 
 static bool libhack_check_version()
 {
-	const char *uuid = libhack_getuuid();
+    const char *uuid = libhack_getuuid();
 
-	if(strncmp(uuid, VCS_UUID, strlen(VCS_UUID)) != 0) {
-		libhack_debug("Version mismatch: %s build %d != %s\n", VCS_TAG, VCS_NUM, libhack_getversion());
-		libhack_debug("This version has been built on %s\n", VCS_DATE);
-		return false;
-	}
+    if (strncmp(uuid, VCS_UUID, strlen(VCS_UUID)) != 0)
+    {
+        libhack_debug("Version mismatch: %s build %d != %s\n", VCS_TAG, VCS_NUM, libhack_getversion());
+        libhack_debug("This version has been built on %s\n", VCS_DATE);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 struct libhack_handle *libhack_init(const char *process_name)
 {
-	struct libhack_handle *lh = NULL;
+    struct libhack_handle *lh = NULL;
 
-	// Checks if loaded version is correct	
-	libhack_assert_or_exit(libhack_check_version(), 1);
+    // Checks if loaded version is correct
+    libhack_assert_or_exit(libhack_check_version(), 1);
 
-	/* Validate parameters */
-	if(!process_name)
-		return NULL;
+    /* Validate parameters */
+    if (!process_name)
+        return NULL;
 
-	/* Allocate memory to store handle data */
+        /* Allocate memory to store handle data */
 #ifdef __windows__
-	lh = (struct libhack_handle*)malloc(sizeof(struct libhack_handle));
-	if(!lh)
-	{
-		libhack_debug("Failed to allocate memory\n");
-		return NULL;
-	}
+    lh = (struct libhack_handle *)malloc(sizeof(struct libhack_handle));
+    if (!lh)
+    {
+        libhack_debug("Failed to allocate memory\n");
+        return NULL;
+    }
 
-	// Initialize memory
-	RtlSecureZeroMemory(lh, sizeof(struct libhack_handle));
+    // Initialize memory
+    RtlSecureZeroMemory(lh, sizeof(struct libhack_handle));
 #else
-	lh = (struct libhack_handle*)calloc(1, sizeof(struct libhack_handle));
-	if(!lh) {
-		libhack_debug("Failed to allocate memory");
-	}
+    lh = (struct libhack_handle *)calloc(1, sizeof(struct libhack_handle));
+    if (!lh)
+    {
+        libhack_debug("Failed to allocate memory");
+    }
 #endif
 
-	/* Copy process name to internal variable */
-	strncpy(lh->process_name, process_name, sizeof(lh->process_name) / sizeof(lh->process_name[0]));
-	
-	// Transform process name to lowercase
-	strlwr(lh->process_name);
+    /* Copy process name to internal variable */
+    strncpy(lh->process_name, process_name, sizeof(lh->process_name) / sizeof(lh->process_name[0]));
 
-	libhack_debug("Initialized libhack version %s (%s)\n", libhack_getversion(), libhack_get_platform());
+    // Transform process name to lowercase
+    strlwr(lh->process_name);
 
-	return lh;
+    libhack_debug("Initialized libhack version %s (%s)\n", libhack_getversion(), libhack_get_platform());
+
+    return lh;
 }
 
 void libhack_free(struct libhack_handle *lh_handle)
 {
-	free(lh_handle);
+    free(lh_handle);
 }
 
 #elif defined(__linux__)
 
 struct libhack_handle *libhack_init(const char *process_name)
 {
-	struct libhack_handle *lh = NULL;
+    struct libhack_handle *lh = NULL;
 
-	// Sanity checking
-	if(!process_name)
-		return NULL;
+    // Sanity checking
+    if (!process_name)
+        return NULL;
 
-	lh = (struct libhack_handle*)calloc(1, sizeof(struct libhack_handle));
-	if(!lh) {
-		libhack_debug("[ERROR] Failed to initialize libhack: %d\n", errno);
-		return NULL;
-	}
-	
-	memset(lh->process_name, 0, sizeof(lh->process_name));
+    lh = (struct libhack_handle *)calloc(1, sizeof(struct libhack_handle));
+    if (!lh)
+    {
+        libhack_debug("[ERROR] Failed to initialize libhack: %d\n", errno);
+        return NULL;
+    }
 
-	// Copy process name to struct
-	strncpy(lh->process_name, process_name, MIN(strlen(process_name),arraySize(lh->process_name)) - 1);
+    memset(lh->process_name, 0, sizeof(lh->process_name));
 
-	// Initializes value for process ID
-	lh->pid = -1;
+    // Copy process name to struct
+    strncpy(lh->process_name, process_name, MIN(strlen(process_name), arraySize(lh->process_name)) - 1);
 
-	// Initializes default base address
-	lh->base_addr = -1;
+    // Initializes value for process ID
+    lh->pid = -1;
 
-	return lh;
+    // Initializes default base address
+    lh->base_addr = -1;
+
+    return lh;
 }
 
-void libhack_free(struct libhack_handle *lh) {
-	free(lh);
+void libhack_free(struct libhack_handle *lh)
+{
+    free(lh);
 }
 
 const char *libhack_getversion()
 {
-	memset(version, 0, sizeof(version));
+    memset(version, 0, sizeof(version));
 
-	/* Print version number to variable */
-	snprintf(version, arraySize(version), "%s build %d", VCS_TAG, VCS_NUM);
+    /* Print version number to variable */
+    snprintf(version, arraySize(version), "%s build %d", VCS_TAG, VCS_NUM);
 
     return &version[0];
 }
