@@ -34,7 +34,7 @@ jobs:
             chmod 777 autorevision
             ./autorevision -t h > autorevision.h
             cmake -B build
-            make -C build
+            cmake --build build --parallel
 
   build-debian-linux:
     docker:
@@ -57,7 +57,7 @@ jobs:
             chmod 777 autorevision
             ./autorevision -t h > autorevision.h
             cmake -B build
-            make -C build
+            cmake --build build --parallel
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows

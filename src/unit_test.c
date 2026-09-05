@@ -1,7 +1,15 @@
+#include <stdio.h>
+
 #include "init.h"
 
-int main()
+int main(void)
 {
+    if (libhack_init(NULL) != NULL)
+    {
+        printf("libhack accepted an invalid process name\n");
+        return 1;
+    }
+
     struct libhack_handle *lh = libhack_init("test.exe");
 
     if(lh == NULL) {

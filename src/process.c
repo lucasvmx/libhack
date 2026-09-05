@@ -9,6 +9,10 @@
  *
  */
 
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+
 #ifndef __MINGW__
 #include "mingw_aliases.h"
 #endif
@@ -25,9 +29,7 @@
 #include <tlhelp32.h>
 
 #elif defined(__linux__)
-#define _GNU_SOURCE
-#define __USE_GNU
-#define __USE_POSIX
+#include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -36,6 +38,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <unistd.h>
 
 #endif
 

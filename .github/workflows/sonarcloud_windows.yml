@@ -23,13 +23,17 @@ jobs:
       - name: Setup build environment
         shell: bash
         run: |
-          cmake -G "MinGW Makefiles" -B build
-          curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+          curl -fsSL https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+          chmod +x autorevision
           ./autorevision -t h > autorevision.h
+          cmake -G "MinGW Makefiles" -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Run build-wrapper
         run: |
-          build-wrapper-win-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} make -C build
+          build-wrapper-win-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build --config Release
+
+      - name: Run tests
+        run: cmake --build build --target test
 
       - name: Run sonar-scanner
         env:
