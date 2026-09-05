@@ -17,8 +17,8 @@ jobs:
           name: "Update packages"
           command: sudo pacman -Syu --noconfirm
       - run:
-          name: "Install git"
-          command: sudo pacman -S --noconfirm git
+          name: "Install Git and SSH"
+          command: sudo pacman -S --noconfirm git openssh
       - checkout
       - run:
           name: "Install development packages"
@@ -36,7 +36,7 @@ jobs:
 
   build-debian-linux:
     docker:
-      - image: debian:bullseye
+      - image: debian:trixie
     steps:
       - run:
           name: "Update packages"
@@ -44,7 +44,7 @@ jobs:
             apt-get update
       - run:
           name: "Install packages"
-          command: apt-get -y install gcc cmake make build-essential git curl
+          command: apt-get install -y --no-install-recommends ca-certificates gcc cmake make build-essential git curl
       - checkout
       - run:
           name: "Build library"
