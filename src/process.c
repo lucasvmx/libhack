@@ -337,13 +337,13 @@ DWORD64 libhack_get_base_addr64(struct libhack_handle *handle)
             if (strnicmp(moduleName, handle->process_name,
                          strlen(handle->process_name)) == 0)
             {
-                DWORD64 modAddr = modules[i];
+                HMODULE modAddr = modules[i];
 
                 // Free memory
                 free(modules);
 
                 handle->hModule = modAddr;
-                return (DWORD64)modAddr;
+                return (DWORD64)(ULONG_PTR)modAddr;
             }
         }
     }
