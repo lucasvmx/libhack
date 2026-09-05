@@ -44,7 +44,7 @@ jobs:
             apt-get update
       - run:
           name: "Install packages"
-          command: apt-get install -y --no-install-recommends ca-certificates gcc cmake make build-essential git curl
+          command: apt-get install -y --no-install-recommends ca-certificates openssh-client gcc cmake make build-essential git curl
       - checkout
       - run:
           name: "Build library"
