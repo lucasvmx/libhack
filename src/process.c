@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
@@ -1088,7 +1089,7 @@ long libhack_read_int_from_addr64(const struct libhack_handle *handle,
 
     local.iov_base = value;
     local.iov_len = sizeof(int);
-    remote.iov_base = &addr;
+    remote.iov_base = (void *)(uintptr_t)addr;
     remote.iov_len = sizeof(int);
 
     ssize_t readed = process_vm_readv(handle->pid, &local, 1, &remote, 1, 0);
@@ -1119,7 +1120,7 @@ long libhack_write_int_to_addr64(const struct libhack_handle *handle,
 
     local.iov_base = &value;
     local.iov_len = sizeof(value);
-    remote.iov_base = &addr;
+    remote.iov_base = (void *)(uintptr_t)addr;
     remote.iov_len = sizeof(value);
 
     libhack_notice("writing address %lx on %d", addr, handle->pid);
@@ -1179,9 +1180,9 @@ int libhack_write_string_to_addr64(const struct libhack_handle *handle,
     // Sanity check
     libhack_assert_or_return(handle != NULL, -1);
 
-    local.iov_base = &string;
+    local.iov_base = (void *)string;
     local.iov_len = string_len;
-    remote.iov_base = &addr;
+    remote.iov_base = (void *)(uintptr_t)addr;
     remote.iov_len = string_len;
 
     libhack_notice("writing address %lx on %d", addr, handle->pid);
@@ -1206,7 +1207,7 @@ __int64_t libhack_read_int64_from_addr64(const struct libhack_handle *handle,
 
     local.iov_base = &local_value;
     local.iov_len = sizeof(__int64_t);
-    remote.iov_base = &addr;
+    remote.iov_base = (void *)(uintptr_t)addr;
     remote.iov_len = sizeof(__int64_t);
 
     if (process_vm_readv(handle->pid, &local, 1, &remote, 1, 0) !=
