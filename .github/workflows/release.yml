@@ -5,19 +5,103 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  release:
-    runs-on: "ubuntu-latest"
+  package:
+    name: Package (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            os: ubuntu-22.04
+          - platform: windows-x86_64
+            os: windows-2025
+
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout source
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Get Date
-        id: date
-        run: echo "::set-output name=date::$(date +'%m-%d-%Y-%H-%M')"
 
-      - name: Make release
-        uses: "marvinpinto/action-automatic-releases@latest"
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autorevision
+
+      - name: Generate revision information (Linux)
+        if: runner.os == 'Linux'
+        run: autorevision -t h > autorevision.h
+
+      - name: Generate revision information (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+          chmod +x autorevision
+          ./autorevision -t h > autorevision.h
+
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -G "MinGW Makefiles" -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build library
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: cmake --build build --target test
+
+      - name: Install package
+        run: cmake --install build --prefix package
+
+      - name: Create Linux archive
+        if: runner.os == 'Linux'
+        run: tar -czf "libhack-${{ github.ref_name }}-${{ matrix.platform }}.tar.gz" -C package .
+
+      - name: Create Windows archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path package\* -DestinationPath "libhack-${{ github.ref_name }}-${{ matrix.platform }}.zip"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v7
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
+          name: libhack-${{ matrix.platform }}
+          path: libhack-${{ github.ref_name }}-${{ matrix.platform }}.*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: sha256sum release-assets/* | tee release-assets/SHA256SUMS
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${{ github.ref_name }}" release-assets/* --repo "${{ github.repository }}" --verify-tag --generate-notes

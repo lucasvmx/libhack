@@ -108,8 +108,9 @@ To get a local copy up and running follow these simple steps.
 
 This is an example of how to list things you need to use the software and how to install them.
 
-* MinGW (Msys2)
-  - Download and install MinGW
+* GCC (Linux)
+* MinGW (Windows)
+  - Download and install MinGW through MSYS2
   - https://www.msys2.org/wiki/MSYS2-installation/
 
 * CMake
@@ -128,44 +129,37 @@ git clone https://github.com/lucas-engen/libhack.git
 cd libhack
 ```
 
-3. Generate Makefiles
+3. Configure the project
 ```sh
-cmake -G <generator name> -B build .
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 ```
 
-* Note: type `cmake --help` to list generators available in your system
-
-4. Go to build directory
+4. Build the library
 ```sh
-cd build
+cmake --build build --parallel
 ```
 
-5. Build source code
+5. Run the tests
 ```sh
-make
+cmake --build build --target test
+```
+
+To install the library and headers locally, run:
+```sh
+cmake --install build --prefix "$HOME/.local"
 ```
 
 ### Building examples
 <br>
 
-1. Go to examples folder
+1. Configure the project with examples enabled
 ```sh
-cd src/examples
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLIBHACK_BUILD_EXAMPLES=ON
 ```
 
-2. Generate makefiles
+2. Build the examples
 ```sh
-cmake -G <generator name> -B build .
-```
-
-3. Go to build directory
-```sh
-cd build
-```
-
-4. Build examples
-```sh
-make
+cmake --build build --parallel
 ```
 <br>
 
@@ -201,8 +195,8 @@ In order to build the project **foo**, you just need to run
 gcc foo.c main.c -L. -lhack
 ```
 
-At this point the **foo** program will be statically linked to libhack, and will need **libhack.dll** or **libhack.so** to be opened
-correcly.
+At this point the **foo** program will be dynamically linked to libhack, and will need **libhack.dll** or **libhack.so** to be opened
+correctly.
 
 _For more examples, please refer to examples below_
 

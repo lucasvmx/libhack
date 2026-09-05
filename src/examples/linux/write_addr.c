@@ -23,7 +23,7 @@ int main() {
     }
 
     printf("process id of %s: %d %d\n",lh->process_name, s, lh->pid);
-    printf("writing address %lx\n", addr);
+    printf("writing address %llx\n", addr);
 
     long status = libhack_write_int_to_addr64(lh, addr, 40000);
     if(status == LIBHACK_OK) {

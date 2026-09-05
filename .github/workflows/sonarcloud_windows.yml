@@ -1,4 +1,5 @@
 name: SonarQube Cloud
+
 on:
   push:
     branches:
@@ -6,34 +7,48 @@ on:
       - dev
   pull_request:
     types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build and analyze (Windows)
-    runs-on: windows-latest
+    runs-on: windows-2025
+    timeout-minutes: 20
     env:
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
 
-      - name: Install sonar-scanner and build-wrapper
-        uses: SonarSource/sonarcloud-github-c-cpp@v3
+      - name: Install Build Wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v8.1.0
 
       - name: Setup build environment
         shell: bash
         run: |
-          cmake -G "MinGW Makefiles" -B build
-          curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+          curl -fsSL https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+          chmod +x autorevision
           ./autorevision -t h > autorevision.h
+          cmake -G "MinGW Makefiles" -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Run build-wrapper
         run: |
-          build-wrapper-win-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} make -C build
+          build-wrapper-win-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build --config Release
 
-      - name: Run sonar-scanner
+      - name: Run tests
+        run: cmake --build build --target test
+
+      - name: SonarQube Scan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          sonar-scanner --define sonar.cfamily.compile-commands="${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"
+        uses: SonarSource/sonarqube-scan-action@v8.1.0
+        with:
+          args: >
+            --define "sonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"

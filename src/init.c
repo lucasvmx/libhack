@@ -149,8 +149,9 @@ struct libhack_handle *libhack_init(const char *process_name)
 
     memset(lh->process_name, 0, sizeof(lh->process_name));
 
-    // Copy process name to struct
-    strncpy(lh->process_name, process_name, MIN(strlen(process_name), arraySize(lh->process_name)) - 1);
+    // Copy process name to struct, always leaving room for the terminator.
+    strncpy(lh->process_name, process_name, sizeof(lh->process_name) - 1);
+    lh->process_name[sizeof(lh->process_name) - 1] = '\0';
 
     // Initializes value for process ID
     lh->pid = -1;

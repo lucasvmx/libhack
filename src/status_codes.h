@@ -2,21 +2,24 @@
 #define LIBHACK_STATUS_CODES_H
 
 #include "platform.h"
-
-#ifdef __windows__
 #include <stdint.h>
-#elif __linux__
+
+#ifdef __linux__
 #include <sys/types.h>
 #endif
 
 #define LIBHACK_OK 0
 
-#ifdef __windows__
-typedef int32_t __int32_t;
+#ifndef LIBHACK_API
+#if defined(__windows__) && defined(DLL_EXPORT)
+#define LIBHACK_API __declspec(dllexport)
+#else
+#define LIBHACK_API
+#endif
 #endif
 
-__int32_t libhack_get_last_error();
-void libhack_set_last_error(__int32_t err);
+LIBHACK_API int32_t libhack_get_last_error(void);
+LIBHACK_API void libhack_set_last_error(int32_t err);
 
 
 #endif
