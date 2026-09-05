@@ -36,7 +36,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y autorevision libprocps-dev
+          sudo apt-get install -y autorevision
 
       - name: Generate revision information (Linux)
         if: runner.os == 'Linux'

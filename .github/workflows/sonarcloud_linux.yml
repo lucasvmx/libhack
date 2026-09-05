@@ -33,7 +33,7 @@ jobs:
       - name: Setup build environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y autorevision libprocps-dev
+          sudo apt-get install -y autorevision
           autorevision -t h > autorevision.h
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DLIBHACK_ENABLE_COVERAGE=ON
 

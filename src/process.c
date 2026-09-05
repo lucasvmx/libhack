@@ -29,11 +29,12 @@
 #include <tlhelp32.h>
 
 #elif defined(__linux__)
+#include <ctype.h>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <proc/readproc.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -886,47 +887,85 @@ bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *error)
 
 #elif defined(__linux__)
 
+static bool libhack_read_process_name(const char *pid_name,
+                                      char *process_name,
+                                      size_t process_name_size)
+{
+    char comm_path[BUFLEN];
+    ssize_t bytes_read;
+    int comm_fd;
+
+    if (!pid_name || !process_name || process_name_size < 2)
+        return false;
+
+    if (snprintf(comm_path, sizeof(comm_path), "/proc/%s/comm", pid_name) < 0)
+        return false;
+
+    comm_fd = open(comm_path, O_RDONLY | O_CLOEXEC);
+    if (comm_fd == -1)
+        return false;
+
+    bytes_read = read(comm_fd, process_name, process_name_size - 1);
+    close(comm_fd);
+
+    if (bytes_read <= 0)
+        return false;
+
+    process_name[bytes_read] = '\0';
+    process_name[strcspn(process_name, "\r\n")] = '\0';
+
+    return process_name[0] != '\0';
+}
+
 pid_t libhack_get_process_id(struct libhack_handle *handle)
 {
-    PROCTAB *proc = NULL;
-    proc_t proc_info;
+    DIR *proc_dir;
+    struct dirent *entry;
+    char process_name[BUFLEN];
 
     // Sanity check
     libhack_assert_or_return(handle != NULL, -1);
 
     if (handle->pid == -1)
     {
-        proc = openproc(PROC_FILLMEM | PROC_FILLSTAT | PROC_FILLSTATUS);
-
-        if (!proc)
+        proc_dir = opendir("/proc");
+        if (!proc_dir)
         {
             libhack_err("Failed to list processes: %d", errno);
             return -1;
         }
 
-        // Allocates memory
-        memset(&proc_info, 0, sizeof(proc_info));
-
         // Iterates through process list
         libhack_notice("reading process list ...");
 
-        while (readproc(proc, &proc_info) != NULL)
+        while ((entry = readdir(proc_dir)) != NULL)
         {
-            if (strncmp(proc_info.cmd, handle->process_name, strlen(proc_info.cmd)) ==
-                0)
+            char *pid_end;
+            long pid_value;
+
+            if (!isdigit((unsigned char)entry->d_name[0]))
+                continue;
+
+            errno = 0;
+            pid_end = NULL;
+            pid_value = strtol(entry->d_name, &pid_end, 10);
+            if (errno != 0 || pid_end == entry->d_name || *pid_end != '\0' ||
+                pid_value <= 0 || pid_value > INT_MAX)
+                continue;
+
+            if (libhack_read_process_name(entry->d_name, process_name,
+                                          sizeof(process_name)) &&
+                strcmp(process_name, handle->process_name) == 0)
             {
-                handle->pid = proc_info.tid;
-                libhack_notice("pid of %s: %hi", proc_info.cmd, handle->pid);
-                libhack_debug("start code, end code, start stack: %#lx, %#lx, %#lx",
-                              proc_info.start_code, proc_info.end_code,
-                              proc_info.start_stack);
+                handle->pid = (pid_t)pid_value;
+                libhack_notice("pid of %s: %d", process_name, (int)handle->pid);
                 break;
             }
         }
 
         libhack_notice("cleaning up resources");
 
-        closeproc(proc);
+        closedir(proc_dir);
     }
 
     return handle->pid;

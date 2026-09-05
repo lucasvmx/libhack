@@ -30,7 +30,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y autorevision libprocps-dev
+        sudo apt-get install -y autorevision
 
     - name: Generate revision information
       run: autorevision -t h > autorevision.h

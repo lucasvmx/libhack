@@ -116,8 +116,6 @@ This is an example of how to list things you need to use the software and how to
 * CMake
   - https://cmake.org/download/
 
-* libprocps-dev (Linux)
-
 ### Building
 <br>
 
