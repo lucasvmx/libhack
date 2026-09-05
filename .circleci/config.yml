@@ -24,17 +24,15 @@ jobs:
           name: "Install development packages"
           command: |
             sudo pacman -S --noconfirm cmake gcc make base-devel curl libprocps
-            sudo pacman -Ss procps
       - run:
           name: "Build library"
           command: |
-            curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
-            git branch
-            echo "======== RUNNING AUTOREVISION ===="
-            chmod 777 autorevision
+            curl -fsSL https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+            chmod +x autorevision
             ./autorevision -t h > autorevision.h
             cmake -B build
             cmake --build build --parallel
+            cmake --build build --target test
 
   build-debian-linux:
     docker:
@@ -43,8 +41,7 @@ jobs:
       - run:
           name: "Update packages"
           command: |
-            apt update
-            apt-get -y upgrade
+            apt-get update
       - run:
           name: "Install packages"
           command: apt-get -y install libprocps-dev gcc cmake make build-essential git curl
@@ -52,12 +49,12 @@ jobs:
       - run:
           name: "Build library"
           command: |
-            curl https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
-            git branch
-            chmod 777 autorevision
+            curl -fsSL https://raw.githubusercontent.com/Autorevision/autorevision/master/autorevision.sh -o autorevision
+            chmod +x autorevision
             ./autorevision -t h > autorevision.h
             cmake -B build
             cmake --build build --parallel
+            cmake --build build --target test
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows

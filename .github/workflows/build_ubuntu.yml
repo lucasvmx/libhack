@@ -1,16 +1,29 @@
-name: ubuntults
+name: Build (Ubuntu)
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-ubuntu-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: ${{ matrix.systems }}
     runs-on: ${{ matrix.systems }}
+    timeout-minutes: 15
     strategy:
+        fail-fast: false
         matrix:
-          systems: [ubuntu-20.04,ubuntu-22.04]
+          systems: [ubuntu-22.04,ubuntu-24.04]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 

@@ -1,16 +1,29 @@
-name: windows
+name: Build (Windows)
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: ${{ matrix.systems }}
     runs-on: ${{ matrix.systems }}
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
-        systems: [windows-latest,windows-2019]
+        systems: [windows-2022,windows-2025]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
