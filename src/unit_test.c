@@ -7,6 +7,9 @@
 
 #ifdef __linux__
 #include <unistd.h>
+#elif defined(_WIN32) || defined(_WIN64) || defined(__MINGW32__) || \
+    defined(__MINGW64__)
+#include <windows.h>
 #endif
 
 #include "init.h"
@@ -39,6 +42,9 @@ static void test_status_codes(void)
     libhack_set_last_error(-7);
     EXPECT(libhack_get_last_error() == -7);
 
+    libhack_set_last_native_error(1234);
+    EXPECT(libhack_get_last_native_error() == 1234);
+
     libhack_set_last_error(LIBHACK_OK);
 }
 
@@ -57,6 +63,7 @@ static void test_initialization(void)
     struct libhack_handle *handle;
 
     EXPECT(libhack_init(NULL) == NULL);
+    EXPECT(libhack_init_by_pid(0) == NULL);
 
     handle = libhack_init("example-process");
     EXPECT(handle != NULL);
@@ -130,7 +137,14 @@ static void test_process_lookup_and_state(void)
     EXPECT(pid == getpid());
     EXPECT(handle->pid == getpid());
     EXPECT(libhack_get_process_id(handle) == getpid());
-    EXPECT(libhack_process_is_running(handle));
+    /* A name can match another instance; verify liveness with an explicit PID. */
+    {
+        struct libhack_handle *pid_handle =
+            libhack_init_by_pid((libhack_pid_t)getpid());
+        EXPECT(pid_handle != NULL);
+        EXPECT(pid_handle != NULL && libhack_process_is_running(pid_handle));
+        libhack_free(pid_handle);
+    }
 
     libhack_free(handle);
 }
@@ -229,12 +243,143 @@ static void test_process_memory(void)
 }
 #endif
 
+static void test_unified_memory_api(void)
+{
+    struct libhack_handle *handle;
+    libhack_pid_t pid;
+    uint8_t bytes[] = {0x10, 0x20, 0x30, 0x40, 0x50};
+    uint8_t scan_bytes[] = {0x60, 0xaa, 0x30, 0x60, 0xbb, 0x30};
+    uint8_t read_bytes[sizeof(bytes)] = {0};
+    const uint8_t pattern[] = {0x60, 0x00, 0x30};
+    const char mask[] = "x?x";
+    struct libhack_match_list matches = {0};
+    struct libhack_memory_region_list regions = {0};
+    struct libhack_module_list modules = {0};
+    int target = 123;
+    int replacement_target = 456;
+    int read_target = 0;
+    uintptr_t second_pointer = (uintptr_t)&target;
+    uintptr_t first_pointer = (uintptr_t)&second_pointer;
+    libhack_offset_t offsets[] = {0, 0, 0};
+    struct
+    {
+        int before;
+        int value;
+    } negative_target = {7, 42};
+    uintptr_t negative_pointer = (uintptr_t)&negative_target.value;
+    libhack_offset_t negative_offsets[] = {0, -(libhack_offset_t)sizeof(int)};
+    libhack_address_t resolved = 0;
+    libhack_status_t status;
+
+#ifdef __linux__
+    pid = (libhack_pid_t)getpid();
+#else
+    pid = (libhack_pid_t)GetCurrentProcessId();
+#endif
+
+    handle = libhack_init_by_pid(pid);
+    EXPECT(handle != NULL);
+    if (handle == NULL)
+        return;
+
+    EXPECT(libhack_open_process(handle) == LIBHACK_OK);
+    EXPECT(libhack_process_is_running(handle));
+    EXPECT(libhack_read_memory(handle, (libhack_address_t)(uintptr_t)bytes,
+                               NULL, 1) == LIBHACK_INVALID_ARGUMENT);
+    EXPECT(libhack_write_memory(handle, (libhack_address_t)(uintptr_t)bytes,
+                                NULL, 1) == LIBHACK_INVALID_ARGUMENT);
+    status = libhack_read_memory(handle, (libhack_address_t)(uintptr_t)bytes,
+                                 read_bytes, sizeof(read_bytes));
+    if (status == LIBHACK_ACCESS_DENIED || status == LIBHACK_UNSUPPORTED)
+    {
+        EXPECT(libhack_get_last_native_error() == EPERM ||
+               libhack_get_last_native_error() == EACCES ||
+               status == LIBHACK_UNSUPPORTED);
+        printf("API de memória unificada ignorada: %d.\n", status);
+        libhack_close_process(handle);
+        libhack_free(handle);
+        return;
+    }
+    EXPECT(status == LIBHACK_OK);
+    EXPECT(memcmp(bytes, read_bytes, sizeof(bytes)) == 0);
+
+    EXPECT(libhack_write_memory(handle, (libhack_address_t)(uintptr_t)bytes,
+                                "\x60\x70", 2) == LIBHACK_OK);
+    EXPECT(bytes[0] == 0x60 && bytes[1] == 0x70);
+
+    EXPECT(libhack_resolve_pointer_chain(
+                handle, (libhack_address_t)(uintptr_t)&first_pointer, offsets,
+                arraySize(offsets), &resolved) == LIBHACK_OK);
+    EXPECT(resolved == (libhack_address_t)(uintptr_t)&target);
+    EXPECT(libhack_read_pointer_chain(
+                handle, (libhack_address_t)(uintptr_t)&first_pointer, offsets,
+                arraySize(offsets), &read_target, sizeof(read_target)) ==
+            LIBHACK_OK);
+    EXPECT(read_target == target);
+    EXPECT(libhack_write_pointer_chain(
+                handle, (libhack_address_t)(uintptr_t)&first_pointer, offsets,
+                arraySize(offsets), &replacement_target, sizeof(int)) ==
+            LIBHACK_OK);
+    EXPECT(target == 456);
+
+    EXPECT(libhack_resolve_pointer_chain(
+                handle, (libhack_address_t)(uintptr_t)&negative_pointer,
+                negative_offsets, arraySize(negative_offsets), &resolved) ==
+            LIBHACK_OK);
+    EXPECT(resolved == (libhack_address_t)(uintptr_t)&negative_target.before);
+    EXPECT(libhack_resolve_pointer_chain(handle, UINTPTR_MAX, offsets, 1,
+                                         &resolved) == LIBHACK_OVERFLOW);
+
+    EXPECT(libhack_scan_memory(handle, (libhack_address_t)(uintptr_t)bytes,
+                               sizeof(bytes), pattern, mask,
+                               arraySize(pattern), &matches) == LIBHACK_OK);
+    EXPECT(matches.count == 1);
+    EXPECT(matches.count == 0 || matches.addresses[0] ==
+                                  (libhack_address_t)(uintptr_t)bytes);
+    libhack_free_match_list(&matches);
+    EXPECT(libhack_scan_memory(
+                handle, (libhack_address_t)(uintptr_t)scan_bytes,
+                sizeof(scan_bytes), pattern, mask, arraySize(pattern),
+                &matches) == LIBHACK_OK);
+    EXPECT(matches.count == 2);
+    EXPECT(matches.count < 1 ||
+           matches.addresses[0] == (libhack_address_t)(uintptr_t)scan_bytes);
+    EXPECT(matches.count < 2 ||
+           matches.addresses[1] ==
+               (libhack_address_t)(uintptr_t)(scan_bytes + 3));
+    libhack_free_match_list(&matches);
+    EXPECT(libhack_scan_memory(handle, (libhack_address_t)(uintptr_t)bytes,
+                               sizeof(bytes), pattern, "z?x",
+                               arraySize(pattern), &matches) ==
+            LIBHACK_INVALID_ARGUMENT);
+
+    EXPECT(libhack_get_memory_regions(handle, &regions) == LIBHACK_OK);
+    EXPECT(regions.count > 0);
+    libhack_free_memory_regions(&regions);
+    EXPECT(libhack_get_modules(handle, &modules) == LIBHACK_OK);
+    EXPECT(modules.count > 0);
+    if (modules.count > 0)
+    {
+        EXPECT(libhack_scan_module(handle, modules.items[0].name, pattern, mask,
+                                   arraySize(pattern), &matches) == LIBHACK_OK);
+        libhack_free_match_list(&matches);
+    }
+    libhack_free_modules(&modules);
+
+    libhack_close_process(handle);
+    libhack_free(handle);
+}
+
 int main(void)
 {
     test_status_codes();
     test_string_lowercase();
     test_initialization();
     test_version();
+
+#if defined(__linux__) || defined(__windows__)
+    test_unified_memory_api();
+#endif
 
 #ifdef __linux__
     test_process_lookup_and_state();
