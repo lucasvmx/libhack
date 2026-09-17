@@ -1103,6 +1103,111 @@ long libhack_read_int_from_addr64(const struct libhack_handle *handle,
     return LIBHACK_OK;
 }
 
+static long libhack_read_pointer_from_addr64(const struct libhack_handle *handle,
+                                             DWORD64 addr,
+                                             DWORD64 *pointer_value)
+{
+    struct iovec local;
+    struct iovec remote;
+    uintptr_t value;
+    ssize_t readed;
+
+    if (handle == NULL || pointer_value == NULL)
+        return -1;
+
+    local.iov_base = &value;
+    local.iov_len = sizeof(value);
+    remote.iov_base = (void *)(uintptr_t)addr;
+    remote.iov_len = sizeof(value);
+
+    readed = process_vm_readv(handle->pid, &local, 1, &remote, 1, 0);
+    if (readed == -1 || readed != (ssize_t)sizeof(value))
+    {
+        libhack_err("Failed to read pointer at address %llx from %d: %d", addr,
+                    handle->pid, errno);
+        return readed == -1 ? errno : EIO;
+    }
+
+    *pointer_value = (DWORD64)value;
+    return LIBHACK_OK;
+}
+
+long libhack_resolve_pointer_chain64(struct libhack_handle *handle,
+                                     DWORD64 base_addr,
+                                     const DWORD64 *offsets,
+                                     size_t offset_count,
+                                     DWORD64 *target_addr)
+{
+    DWORD64 current_addr;
+    size_t index;
+    long status;
+
+    if (handle == NULL || offsets == NULL || offset_count == 0 ||
+        target_addr == NULL)
+        return -1;
+
+    if (handle->pid == -1)
+    {
+        errno = 0;
+        if (libhack_get_process_id(handle) == -1)
+            return errno != 0 ? errno : ESRCH;
+    }
+
+    current_addr = base_addr;
+    for (index = 0; index + 1 < offset_count; ++index)
+    {
+        if (UINT64_MAX - current_addr < offsets[index])
+            return EOVERFLOW;
+
+        status = libhack_read_pointer_from_addr64(handle,
+                                                   current_addr + offsets[index],
+                                                   &current_addr);
+        if (status != LIBHACK_OK)
+            return status;
+    }
+
+    if (UINT64_MAX - current_addr < offsets[offset_count - 1])
+        return EOVERFLOW;
+
+    *target_addr = current_addr + offsets[offset_count - 1];
+    return LIBHACK_OK;
+}
+
+long libhack_read_int_from_pointer_chain64(struct libhack_handle *handle,
+                                           DWORD64 base_addr,
+                                           const DWORD64 *offsets,
+                                           size_t offset_count, int *value)
+{
+    DWORD64 target_addr;
+    long status;
+
+    if (value == NULL)
+        return -1;
+
+    status = libhack_resolve_pointer_chain64(handle, base_addr, offsets,
+                                              offset_count, &target_addr);
+    if (status != LIBHACK_OK)
+        return status;
+
+    return libhack_read_int_from_addr64(handle, target_addr, value);
+}
+
+long libhack_write_int_to_pointer_chain64(struct libhack_handle *handle,
+                                          DWORD64 base_addr,
+                                          const DWORD64 *offsets,
+                                          size_t offset_count, int value)
+{
+    DWORD64 target_addr;
+    long status;
+
+    status = libhack_resolve_pointer_chain64(handle, base_addr, offsets,
+                                              offset_count, &target_addr);
+    if (status != LIBHACK_OK)
+        return status;
+
+    return libhack_write_int_to_addr64(handle, target_addr, value);
+}
+
 long libhack_write_int_to_addr(const struct libhack_handle *handle, DWORD addr,
                                int value)
 {
