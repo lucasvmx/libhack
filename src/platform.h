@@ -10,7 +10,7 @@
 #define __x86__ 1
 #define __win32 1
 #define __windows__ 1
-#elif defined(__linux__) || defined(__x86_64__)
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 #define __linux64 1
 #elif defined(__linux__)
 #define __linux32 1
