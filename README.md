@@ -207,23 +207,49 @@ _For more examples, please refer to examples below_
   - [Dll Source Code - Windows](src/examples/windows/hello.c)
 - [Writing to a memory address - Linux](src/examples/linux/write_addr.c)
 
-### Pointer chains on Linux
+### Cross-platform memory API
 
-Use `libhack_read_int_from_pointer_chain64` or
-`libhack_write_int_to_pointer_chain64` for a pointer path copied from Cheat
-Engine. For `offsets = {0x10, 0x20, 0x8}`, libhack resolves
-`*(*(base_address + 0x10) + 0x20) + 0x8` and performs the operation at the
-resulting address.
+The unified API works on both Windows and Linux and uses native-width process
+addresses:
 
 ```c
-const DWORD64 offsets[] = {0x10, 0x20, 0x8};
-int value;
+uint32_t value;
+libhack_status_t status = libhack_read_memory(
+    handle, address, &value, sizeof(value));
+```
 
-long status = libhack_read_int_from_pointer_chain64(
-    handle, base_address, offsets, arraySize(offsets), &value);
+Use `libhack_init_by_pid` when the target PID is already known. Existing
+type-specific functions remain available for compatibility.
+
+### Pointer chains
+
+`libhack_resolve_pointer_chain`, `libhack_read_pointer_chain` and
+`libhack_write_pointer_chain` accept the base address and offsets copied from
+Cheat Engine. For `offsets = {0x10, 0x20, 0x8}`, libhack resolves
+`*(*(base_address + 0x10) + 0x20) + 0x8` and performs the operation at the
+resulting address. Offsets are signed, so negative offsets are supported.
+
+```c
+const libhack_offset_t offsets[] = {0x10, 0x20, 0x8};
+uint32_t value;
+
+libhack_status_t status = libhack_read_pointer_chain(
+    handle, base_address, offsets, arraySize(offsets), &value, sizeof(value));
 ```
 
 The target process must have the same pointer width as the libhack process.
+
+### Módulos, regiões e assinaturas
+
+`libhack_get_modules` and `libhack_get_memory_regions` expose module bases,
+sizes, paths and normalized `rwx` protections. Release their allocated data
+with the corresponding `libhack_free_*` function. `libhack_scan_memory` and
+`libhack_scan_module` support byte signatures using an `x`/`?` mask and return
+all matches through `struct libhack_match_list`.
+
+As operações retornam `libhack_status_t`; `libhack_get_last_error()` fornece o
+último status e `libhack_get_last_native_error()` o código nativo de Windows
+ou Linux. Nenhuma dessas APIs encerra o processo em caso de erro.
 
 <!-- ROADMAP -->
 ## Roadmap
