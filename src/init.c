@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <limits.h>
-#include <sys/param.h>
 #include "init.h"
 #include "logger.h"
 #include "../autorevision.h"

@@ -2600,22 +2600,22 @@ int libhack_write_string_to_addr64(const struct libhack_handle *handle,
     return LIBHACK_OK;
 }
 
-__int64_t libhack_read_int64_from_addr64(const struct libhack_handle *handle,
-                                         DWORD64 addr)
+int64_t libhack_read_int64_from_addr64(const struct libhack_handle *handle,
+                                       DWORD64 addr)
 {
     struct iovec local;
     struct iovec remote;
-    __int64_t local_value;
+    int64_t local_value;
 
     libhack_assert_or_return(handle, -1);
 
     local.iov_base = &local_value;
-    local.iov_len = sizeof(__int64_t);
+    local.iov_len = sizeof(int64_t);
     remote.iov_base = (void *)(uintptr_t)addr;
-    remote.iov_len = sizeof(__int64_t);
+    remote.iov_len = sizeof(int64_t);
 
     if (process_vm_readv(handle->pid, &local, 1, &remote, 1, 0) !=
-        (ssize_t)sizeof(__int64_t))
+        (ssize_t)sizeof(int64_t))
     {
         libhack_err("failed to read address %llx: %d", addr, errno);
         return errno;
