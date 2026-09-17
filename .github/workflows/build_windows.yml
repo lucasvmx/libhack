@@ -14,13 +14,19 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.systems }}
+    name: ${{ matrix.systems }} (${{ matrix.architecture }})
     runs-on: ${{ matrix.systems }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        systems: [windows-2022,windows-2025]
+        include:
+          - systems: windows-2022
+            architecture: x64
+            cmake_architecture: x64
+          - systems: windows-2022
+            architecture: x86
+            cmake_architecture: Win32
 
     steps:
     - uses: actions/checkout@v6
@@ -35,10 +41,10 @@ jobs:
         ./autorevision -t h > autorevision.h
 
     - name: Configure CMake
-      run: cmake -G "MinGW Makefiles" -S . -B build -DCMAKE_BUILD_TYPE=Release -DLIBHACK_BUILD_EXAMPLES=ON
+      run: cmake -G "Visual Studio 17 2022" -A ${{ matrix.cmake_architecture }} -S . -B build -DLIBHACK_BUILD_EXAMPLES=ON
 
     - name: Build library and examples
-      run: cmake --build build --parallel
+      run: cmake --build build --config Release --parallel
 
     - name: Run tests
-      run: cmake --build build --target test
+      run: cmake --build build --config Release --target test

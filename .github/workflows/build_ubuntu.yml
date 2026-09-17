@@ -14,13 +14,25 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.systems }}
+    name: ${{ matrix.systems }} (${{ matrix.architecture }})
     runs-on: ${{ matrix.systems }}
     timeout-minutes: 15
     strategy:
         fail-fast: false
         matrix:
-          systems: [ubuntu-22.04,ubuntu-24.04]
+          include:
+            - systems: ubuntu-22.04
+              architecture: x64
+              cflags: ""
+            - systems: ubuntu-24.04
+              architecture: x64
+              cflags: ""
+            - systems: ubuntu-22.04
+              architecture: x86
+              cflags: "-m32"
+            - systems: ubuntu-24.04
+              architecture: x86
+              cflags: "-m32"
 
     steps:
     - uses: actions/checkout@v6
@@ -30,13 +42,13 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y autorevision
+        sudo apt-get install -y autorevision gcc-multilib g++-multilib
 
     - name: Generate revision information
       run: autorevision -t h > autorevision.h
 
     - name: Configure CMake
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLIBHACK_BUILD_EXAMPLES=ON
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLIBHACK_BUILD_EXAMPLES=ON -DCMAKE_C_FLAGS="${{ matrix.cflags }}"
 
     - name: Build library and examples
       run: cmake --build build --parallel
