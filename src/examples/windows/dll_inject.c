@@ -26,7 +26,7 @@ int main()
         return 1;
     }
 
-    if(!libhack_open_process(handle)) {
+    if(libhack_open_process(handle) != LIBHACK_OK) {
         perror("failed to open process");
         libhack_free(handle);
         return 1;

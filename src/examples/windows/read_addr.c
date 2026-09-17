@@ -31,7 +31,7 @@ int main()
         We won't be able to perform any operations in a process
         unless it is opened
     */
-    if(!libhack_open_process(hack))
+    if(libhack_open_process(hack) != LIBHACK_OK)
     {
         printf("We failed to open process\n");
         return 0;

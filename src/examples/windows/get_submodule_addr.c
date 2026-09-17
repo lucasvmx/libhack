@@ -18,7 +18,7 @@ int main()
     }
 
 	// opens the process
-	if(libhack_open_process(handle)) {
+	if(libhack_open_process(handle) == LIBHACK_OK) {
 #ifdef __MINGW64__
 		DWORD64 addr = libhack_getsubmodule_addr64(handle, "kernel32.dll");
 		printf("address: 0x%llx\n", addr);
