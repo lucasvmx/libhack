@@ -201,6 +201,43 @@ int libhack_write_string_to_addr64(const struct libhack_handle *handle, DWORD64 
 
 __int64_t libhack_read_int64_from_addr64(const struct libhack_handle *handle, DWORD64 addr);
 
+/**
+ * @brief Resolve a Cheat Engine-style pointer chain in a Linux process.
+ *
+ * Given a base address and offsets {a, b, c}, this resolves the target as
+ * `*(*(base + a) + b) + c`. All offsets except the last one are followed as
+ * native pointers of the process running libhack. The target process must use
+ * the same pointer width as libhack.
+ *
+ * @param handle Handle returned by libhack_init.
+ * @param base_addr Static or module-relative base address.
+ * @param offsets Array containing at least one offset.
+ * @param offset_count Number of entries in offsets.
+ * @param target_addr Receives the resolved final address.
+ * @return LIBHACK_OK on success; otherwise errno or -1 for invalid arguments.
+ */
+long libhack_resolve_pointer_chain64(struct libhack_handle *handle,
+                                     DWORD64 base_addr,
+                                     const DWORD64 *offsets,
+                                     size_t offset_count,
+                                     DWORD64 *target_addr);
+
+/**
+ * @brief Read an int through a Cheat Engine-style pointer chain.
+ */
+long libhack_read_int_from_pointer_chain64(struct libhack_handle *handle,
+                                           DWORD64 base_addr,
+                                           const DWORD64 *offsets,
+                                           size_t offset_count, int *value);
+
+/**
+ * @brief Write an int through a Cheat Engine-style pointer chain.
+ */
+long libhack_write_int_to_pointer_chain64(struct libhack_handle *handle,
+                                          DWORD64 base_addr,
+                                          const DWORD64 *offsets,
+                                          size_t offset_count, int value);
+
 #endif
 
 #ifdef __cplusplus

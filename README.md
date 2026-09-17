@@ -207,6 +207,24 @@ _For more examples, please refer to examples below_
   - [Dll Source Code - Windows](src/examples/windows/hello.c)
 - [Writing to a memory address - Linux](src/examples/linux/write_addr.c)
 
+### Pointer chains on Linux
+
+Use `libhack_read_int_from_pointer_chain64` or
+`libhack_write_int_to_pointer_chain64` for a pointer path copied from Cheat
+Engine. For `offsets = {0x10, 0x20, 0x8}`, libhack resolves
+`*(*(base_address + 0x10) + 0x20) + 0x8` and performs the operation at the
+resulting address.
+
+```c
+const DWORD64 offsets[] = {0x10, 0x20, 0x8};
+int value;
+
+long status = libhack_read_int_from_pointer_chain64(
+    handle, base_address, offsets, arraySize(offsets), &value);
+```
+
+The target process must have the same pointer width as the libhack process.
+
 <!-- ROADMAP -->
 ## Roadmap
 

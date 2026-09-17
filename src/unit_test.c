@@ -142,6 +142,11 @@ static void test_process_memory(void)
     const char replacement[] = "after";
     int target_int = 1234;
     int read_int = 0;
+    uintptr_t first_pointer;
+    uintptr_t second_pointer;
+    const DWORD64 pointer_offsets[] = {0, 0, 0};
+    const DWORD64 overflow_offset[] = {1};
+    DWORD64 resolved_address = 0;
     int64_t target_int64 = INT64_C(0x1020304050607080);
     struct libhack_handle *handle;
     long base_address;
@@ -162,6 +167,16 @@ static void test_process_memory(void)
     EXPECT(libhack_write_string_to_addr64(NULL, 0, replacement,
                                           sizeof(replacement)) == -1);
     EXPECT(libhack_read_int64_from_addr64(NULL, 0) == -1);
+    EXPECT(libhack_resolve_pointer_chain64(NULL, 0, pointer_offsets,
+                                            arraySize(pointer_offsets),
+                                            &resolved_address) == -1);
+    EXPECT(libhack_resolve_pointer_chain64(handle, 0, NULL, 1,
+                                            &resolved_address) == -1);
+    EXPECT(libhack_resolve_pointer_chain64(handle, 0, pointer_offsets, 0,
+                                            &resolved_address) == -1);
+    EXPECT(libhack_resolve_pointer_chain64(handle, UINT64_MAX,
+                                            overflow_offset, 1,
+                                            &resolved_address) == EOVERFLOW);
     EXPECT(libhack_get_process_id(handle) == getpid());
 
     read_result = libhack_read_int_from_addr64(
@@ -176,6 +191,21 @@ static void test_process_memory(void)
 
     EXPECT(read_result == LIBHACK_OK);
     EXPECT(read_int == target_int);
+
+    first_pointer = (uintptr_t)&second_pointer;
+    second_pointer = (uintptr_t)&target_int;
+    EXPECT(libhack_resolve_pointer_chain64(
+                handle, (DWORD64)(uintptr_t)&first_pointer, pointer_offsets,
+                arraySize(pointer_offsets), &resolved_address) == LIBHACK_OK);
+    EXPECT(resolved_address == (DWORD64)(uintptr_t)&target_int);
+    EXPECT(libhack_read_int_from_pointer_chain64(
+                handle, (DWORD64)(uintptr_t)&first_pointer, pointer_offsets,
+                arraySize(pointer_offsets), &read_int) == LIBHACK_OK);
+    EXPECT(read_int == target_int);
+    EXPECT(libhack_write_int_to_pointer_chain64(
+                handle, (DWORD64)(uintptr_t)&first_pointer, pointer_offsets,
+                arraySize(pointer_offsets), 2468) == LIBHACK_OK);
+    EXPECT(target_int == 2468);
 
     base_address = libhack_get_base_addr(handle);
     EXPECT(base_address > 0);
