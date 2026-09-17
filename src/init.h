@@ -15,7 +15,10 @@
 #include "consts.h"
 #include "types.h"
 #include <stdio.h>
+#include <stdbool.h>
+#ifdef __linux__
 #include <sys/types.h>
+#endif
 
 #if defined(__MINGW__) || defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -142,6 +145,7 @@ LIBHACK_API const char *libhack_get_utc_build_date();
  * @return struct libhack_handle* Handle to libhack or NULL on error
  */
 LIBHACK_API struct libhack_handle *libhack_init(const char *process_name);
+LIBHACK_API struct libhack_handle *libhack_init_by_pid(libhack_pid_t pid);
 
 /**
  * @brief Cleanup resources used by libhack
@@ -184,9 +188,11 @@ struct libhack_handle {
 	 *
 	 */
 	long base_addr;
+	bool process_is_open;
 };
 
 struct libhack_handle *libhack_init(const char *process_name);
+struct libhack_handle *libhack_init_by_pid(libhack_pid_t pid);
 void libhack_free(struct libhack_handle *lh);
 const char *libhack_getversion();
 

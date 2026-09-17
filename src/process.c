@@ -19,6 +19,9 @@
 
 #include "platform.h"
 #include "status_codes.h"
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef __windows__
 #include <windows.h>
@@ -38,6 +41,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -65,12 +69,18 @@ enum CHECK_TYPES
     READ_CHECK
 };
 
+static libhack_status_t libhack_return_status(libhack_status_t status)
+{
+    libhack_set_last_error(status);
+    return status;
+}
+
 #ifdef __windows__
 /**
  * @brief Pointer to IsWow64Process function
  *
  */
-typedef bool (*pIsWow64Process)(HANDLE hProcess, bool *isWow64);
+typedef BOOL(WINAPI *pIsWow64Process)(HANDLE hProcess, PBOOL isWow64);
 
 /**
  * @brief Checks if the specified handle can be used to specified 'type' access
@@ -117,13 +127,35 @@ static long libhack_get_modules_count(struct libhack_handle *handle,
     return (long)needed / sizeof(HMODULE);
 }
 
-bool libhack_open_process(struct libhack_handle *handle)
+static libhack_status_t libhack_windows_record_error(DWORD error_code)
+{
+    libhack_set_last_native_error((int32_t)error_code);
+    if (error_code == ERROR_ACCESS_DENIED)
+        libhack_set_last_error(LIBHACK_ACCESS_DENIED);
+    else if (error_code == ERROR_INVALID_PARAMETER)
+        libhack_set_last_error(LIBHACK_INVALID_ARGUMENT);
+    else if (error_code == ERROR_INVALID_ADDRESS ||
+             error_code == ERROR_PARTIAL_COPY)
+        libhack_set_last_error(LIBHACK_INVALID_ADDRESS);
+    else if (error_code == ERROR_NOT_ENOUGH_MEMORY ||
+             error_code == ERROR_OUTOFMEMORY)
+        libhack_set_last_error(LIBHACK_OUT_OF_MEMORY);
+    else if (error_code == ERROR_FILE_NOT_FOUND ||
+             error_code == ERROR_PATH_NOT_FOUND ||
+             error_code == ERROR_INVALID_HANDLE)
+        libhack_set_last_error(LIBHACK_NOT_FOUND);
+    else
+        libhack_set_last_error(LIBHACK_NATIVE_ERROR);
+    return (libhack_status_t)libhack_get_last_error();
+}
+
+libhack_status_t libhack_open_process(struct libhack_handle *handle)
 {
     bool bIs64 = false;
     DWORD err;
 
     if (!handle)
-        return false;
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
 
     /* Check if the process is already open */
     if (!handle->bProcessIsOpen)
@@ -131,13 +163,17 @@ bool libhack_open_process(struct libhack_handle *handle)
         DWORD pid = libhack_get_process_id(handle);
         if (pid)
         {
-            handle->hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+            handle->hProcess = OpenProcess(
+                PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_VM_WRITE |
+                    PROCESS_VM_OPERATION,
+                FALSE, pid);
 
             if (!handle->hProcess)
             {
+                DWORD error_code = GetLastError();
                 libhack_debug("Failed to open process with pid %lu: %lu", pid,
-                              GetLastError());
-                return false;
+                              error_code);
+                return libhack_windows_record_error(error_code);
             }
 
             // Setup flags
@@ -151,24 +187,45 @@ bool libhack_open_process(struct libhack_handle *handle)
                 handle->b64BitProcess = bIs64;
             }
 
-            return true;
+            libhack_set_last_error(LIBHACK_OK);
+            return LIBHACK_OK;
         }
 
-        return false;
+        libhack_set_last_native_error(ERROR_FILE_NOT_FOUND);
+        return libhack_return_status(LIBHACK_NOT_FOUND);
     }
 
     /* Handle already opened */
     SetLastError(ERROR_ALREADY_INITIALIZED);
 
-    return true;
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+void libhack_close_process(struct libhack_handle *handle)
+{
+    if (handle == NULL)
+        return;
+    if (handle->hProcess != NULL)
+        CloseHandle(handle->hProcess);
+    handle->hProcess = NULL;
+    handle->hModule = NULL;
+    handle->bProcessIsOpen = FALSE;
 }
 
 DWORD libhack_get_process_id(struct libhack_handle *handle)
 {
     HANDLE hSnapshot;
-    PROCESSENTRY32 *entry = NULL;
+    PROCESSENTRY32A *entry = NULL;
     DWORD pid = 0;
     size_t max_count = 0;
+
+    if (handle == NULL)
+        return 0;
+
+    /* A PID supplied explicitly takes precedence over name lookup. */
+    if (handle->pid != 0)
+        return handle->pid;
 
     /* Check if the process is already open */
     if (handle->bProcessIsOpen)
@@ -180,24 +237,29 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
     }
 
     /* Allocate memory */
-    entry = (PROCESSENTRY32 *)malloc(sizeof(PROCESSENTRY32));
+    entry = (PROCESSENTRY32A *)malloc(sizeof(PROCESSENTRY32A));
     if (!entry)
     {
         libhack_debug("Failed to allocate memory");
         return 0;
     }
+    memset(entry, 0, sizeof(*entry));
+    entry->dwSize = sizeof(*entry);
 
     /* Create a snapshot */
     hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (!hSnapshot)
+    if (hSnapshot == INVALID_HANDLE_VALUE)
     {
         libhack_debug("Failed to create snapshot");
+        free(entry);
         return 0;
     }
 
-    if (!Process32First(hSnapshot, entry))
+    if (!Process32FirstA(hSnapshot, entry))
     {
         libhack_debug("Failed to initialize process list: %lu", GetLastError());
+        CloseHandle(hSnapshot);
+        free(entry);
         return 0;
     }
 
@@ -206,19 +268,591 @@ DWORD libhack_get_process_id(struct libhack_handle *handle)
 
     do
     {
-        if (strnicmp(entry->szExeFile, handle->process_name, max_count) == 0)
+        if (strlen(entry->szExeFile) == max_count &&
+            strnicmp(entry->szExeFile, handle->process_name, max_count) == 0)
         {
             pid = entry->th32ProcessID;
             break;
         }
-    } while (Process32Next(hSnapshot, entry));
+    } while (Process32NextA(hSnapshot, entry));
 
     /* Close process handle */
     CloseHandle(hSnapshot);
+    free(entry);
 
     handle->pid = pid;
 
     return pid;
+}
+
+static char *libhack_windows_strdup_local(const char *value)
+{
+    size_t length;
+    char *copy;
+
+    if (value == NULL)
+        return NULL;
+    length = strlen(value) + 1;
+    copy = (char *)malloc(length);
+    if (copy != NULL)
+        memcpy(copy, value, length);
+    return copy;
+}
+
+libhack_status_t libhack_read_memory(struct libhack_handle *handle,
+                                     libhack_address_t address, void *buffer,
+                                     size_t size)
+{
+    SIZE_T transferred = 0;
+
+    if (handle == NULL || (buffer == NULL && size != 0))
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (size == 0)
+        return LIBHACK_OK;
+    if (libhack_open_process(handle) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+    if (!ReadProcessMemory(handle->hProcess, (const void *)address, buffer, size,
+                           &transferred))
+    {
+        if (transferred != 0)
+        {
+            libhack_set_last_error(LIBHACK_PARTIAL_TRANSFER);
+            return LIBHACK_PARTIAL_TRANSFER;
+        }
+        return libhack_windows_record_error(GetLastError());
+    }
+    if (transferred != size)
+    {
+        libhack_set_last_error(LIBHACK_PARTIAL_TRANSFER);
+        return LIBHACK_PARTIAL_TRANSFER;
+    }
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+libhack_status_t libhack_write_memory(struct libhack_handle *handle,
+                                      libhack_address_t address,
+                                      const void *buffer, size_t size)
+{
+    SIZE_T transferred = 0;
+
+    if (handle == NULL || (buffer == NULL && size != 0))
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (size == 0)
+        return LIBHACK_OK;
+    if (libhack_open_process(handle) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+    if (!WriteProcessMemory(handle->hProcess, (void *)address, buffer, size,
+                            &transferred))
+    {
+        if (transferred != 0)
+        {
+            libhack_set_last_error(LIBHACK_PARTIAL_TRANSFER);
+            return LIBHACK_PARTIAL_TRANSFER;
+        }
+        return libhack_windows_record_error(GetLastError());
+    }
+    if (transferred != size)
+    {
+        libhack_set_last_error(LIBHACK_PARTIAL_TRANSFER);
+        return LIBHACK_PARTIAL_TRANSFER;
+    }
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+static uint32_t libhack_windows_protection(DWORD protection)
+{
+    uint32_t result = 0;
+    DWORD base_protection = protection & 0xff;
+
+    if (protection & PAGE_GUARD)
+        result |= LIBHACK_PROTECTION_GUARD;
+    switch (base_protection)
+    {
+    case PAGE_READONLY:
+        result |= LIBHACK_PROTECTION_READ;
+        break;
+    case PAGE_READWRITE:
+    case PAGE_WRITECOPY:
+        result |= LIBHACK_PROTECTION_READ | LIBHACK_PROTECTION_WRITE;
+        break;
+    case PAGE_EXECUTE:
+        result |= LIBHACK_PROTECTION_EXECUTE;
+        break;
+    case PAGE_EXECUTE_READ:
+        result |= LIBHACK_PROTECTION_EXECUTE | LIBHACK_PROTECTION_READ;
+        break;
+    case PAGE_EXECUTE_READWRITE:
+    case PAGE_EXECUTE_WRITECOPY:
+        result |= LIBHACK_PROTECTION_EXECUTE | LIBHACK_PROTECTION_READ |
+                  LIBHACK_PROTECTION_WRITE;
+        break;
+    default:
+        break;
+    }
+    return result;
+}
+
+void libhack_free_memory_regions(struct libhack_memory_region_list *regions)
+{
+    size_t index;
+
+    if (regions == NULL)
+        return;
+    for (index = 0; index < regions->count; ++index)
+        free(regions->items[index].path);
+    free(regions->items);
+    regions->items = NULL;
+    regions->count = 0;
+}
+
+libhack_status_t libhack_get_memory_regions(
+    struct libhack_handle *handle, struct libhack_memory_region_list *regions)
+{
+    SYSTEM_INFO system_info;
+    uintptr_t address;
+    uintptr_t maximum_address;
+
+    if (regions == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    regions->items = NULL;
+    regions->count = 0;
+    if (handle == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (libhack_open_process(handle) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+
+    GetSystemInfo(&system_info);
+    address = (uintptr_t)system_info.lpMinimumApplicationAddress;
+    maximum_address = (uintptr_t)system_info.lpMaximumApplicationAddress;
+    if (!handle->b64BitProcess && maximum_address > UINT32_MAX)
+        maximum_address = (uintptr_t)UINT32_MAX + 1;
+    while (address < maximum_address)
+    {
+        MEMORY_BASIC_INFORMATION info;
+        SIZE_T queried = VirtualQueryEx(handle->hProcess, (const void *)address,
+                                        &info, sizeof(info));
+        struct libhack_memory_region *new_items;
+        struct libhack_memory_region *region;
+        char mapped_path[MAX_PATH * 2];
+        DWORD path_length;
+        uintptr_t next_address;
+
+        if (queried == 0)
+            break;
+        next_address = (uintptr_t)info.BaseAddress + info.RegionSize;
+        if (next_address <= address)
+            break;
+        address = next_address;
+        if (info.State != MEM_COMMIT)
+            continue;
+
+        new_items = (struct libhack_memory_region *)realloc(
+            regions->items,
+            (regions->count + 1) * sizeof(struct libhack_memory_region));
+        if (new_items == NULL)
+        {
+            libhack_free_memory_regions(regions);
+            return LIBHACK_OUT_OF_MEMORY;
+        }
+        regions->items = new_items;
+        region = &regions->items[regions->count++];
+        region->base = (libhack_address_t)info.BaseAddress;
+        region->size = (size_t)info.RegionSize;
+        region->protection = libhack_windows_protection(info.Protect);
+        region->path = NULL;
+        memset(mapped_path, 0, sizeof(mapped_path));
+        path_length = GetMappedFileNameA(
+            handle->hProcess, info.BaseAddress, mapped_path,
+            (DWORD)arraySize(mapped_path));
+        if (path_length != 0)
+        {
+            region->path = libhack_windows_strdup_local(mapped_path);
+            if (region->path == NULL)
+            {
+                libhack_free_memory_regions(regions);
+                return LIBHACK_OUT_OF_MEMORY;
+            }
+        }
+    }
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+void libhack_free_modules(struct libhack_module_list *modules)
+{
+    size_t index;
+
+    if (modules == NULL)
+        return;
+    for (index = 0; index < modules->count; ++index)
+    {
+        free(modules->items[index].name);
+        free(modules->items[index].path);
+    }
+    free(modules->items);
+    modules->items = NULL;
+    modules->count = 0;
+}
+
+libhack_status_t libhack_get_modules(struct libhack_handle *handle,
+                                     struct libhack_module_list *modules)
+{
+    HANDLE snapshot;
+    MODULEENTRY32A entry;
+
+    if (modules == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    modules->items = NULL;
+    modules->count = 0;
+    if (handle == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (libhack_open_process(handle) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+    snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE |
+                                            TH32CS_SNAPMODULE32,
+                                        handle->pid);
+    if (snapshot == INVALID_HANDLE_VALUE)
+        return libhack_windows_record_error(GetLastError());
+
+    memset(&entry, 0, sizeof(entry));
+    entry.dwSize = sizeof(entry);
+    if (!Module32FirstA(snapshot, &entry))
+    {
+        DWORD error_code = GetLastError();
+        CloseHandle(snapshot);
+        return libhack_windows_record_error(error_code);
+    }
+    do
+    {
+        struct libhack_module *new_items = (struct libhack_module *)realloc(
+            modules->items,
+            (modules->count + 1) * sizeof(struct libhack_module));
+        struct libhack_module *module;
+
+        if (new_items == NULL)
+        {
+            CloseHandle(snapshot);
+            libhack_free_modules(modules);
+            return LIBHACK_OUT_OF_MEMORY;
+        }
+        modules->items = new_items;
+        module = &modules->items[modules->count++];
+        module->base = (libhack_address_t)entry.modBaseAddr;
+        module->size = (size_t)entry.modBaseSize;
+        module->name = libhack_windows_strdup_local(entry.szModule);
+        module->path = libhack_windows_strdup_local(entry.szExePath);
+        if (module->name == NULL || module->path == NULL)
+        {
+            CloseHandle(snapshot);
+            libhack_free_modules(modules);
+            return LIBHACK_OUT_OF_MEMORY;
+        }
+    } while (Module32NextA(snapshot, &entry));
+    CloseHandle(snapshot);
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+static bool libhack_pattern_matches_windows(const uint8_t *buffer, size_t offset,
+                                            const uint8_t *pattern,
+                                            const char *mask,
+                                            size_t pattern_size)
+{
+    size_t index;
+    for (index = 0; index < pattern_size; ++index)
+    {
+        if (mask[index] == 'x' && buffer[offset + index] != pattern[index])
+            return false;
+    }
+    return true;
+}
+
+static libhack_status_t libhack_windows_append_match(
+    struct libhack_match_list *matches, libhack_address_t address)
+{
+    libhack_address_t *new_addresses = (libhack_address_t *)realloc(
+        matches->addresses,
+        (matches->count + 1) * sizeof(libhack_address_t));
+    if (new_addresses == NULL)
+        return LIBHACK_OUT_OF_MEMORY;
+    matches->addresses = new_addresses;
+    matches->addresses[matches->count++] = address;
+    return LIBHACK_OK;
+}
+
+void libhack_free_match_list(struct libhack_match_list *matches)
+{
+    if (matches == NULL)
+        return;
+    free(matches->addresses);
+    matches->addresses = NULL;
+    matches->count = 0;
+}
+
+libhack_status_t libhack_scan_memory(
+    struct libhack_handle *handle, libhack_address_t base, size_t size,
+    const uint8_t *pattern, const char *mask, size_t pattern_size,
+    struct libhack_match_list *matches)
+{
+    const size_t chunk_size = 1024 * 1024;
+    size_t overlap;
+    size_t owned_offset;
+    uint8_t *buffer;
+    size_t index;
+
+    if (matches == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    matches->addresses = NULL;
+    matches->count = 0;
+    if (handle == NULL || pattern == NULL || mask == NULL || pattern_size == 0)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (strlen(mask) < pattern_size)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    for (index = 0; index < pattern_size; ++index)
+    {
+        if (mask[index] != 'x' && mask[index] != '?')
+            return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    }
+    if (size < pattern_size)
+        return LIBHACK_OK;
+    if (base > UINTPTR_MAX - size)
+        return libhack_return_status(LIBHACK_OVERFLOW);
+    overlap = pattern_size - 1;
+    if (overlap > SIZE_MAX - chunk_size)
+        return libhack_return_status(LIBHACK_OVERFLOW);
+    buffer = (uint8_t *)malloc(chunk_size + overlap);
+    if (buffer == NULL)
+        return LIBHACK_OUT_OF_MEMORY;
+
+    for (owned_offset = 0; owned_offset < size; owned_offset += chunk_size)
+    {
+        size_t owned_size = size - owned_offset;
+        size_t read_start;
+        size_t read_end;
+        size_t read_size;
+
+        if (owned_size > chunk_size)
+            owned_size = chunk_size;
+        read_start = owned_offset > overlap ? owned_offset - overlap : 0;
+        read_end = owned_offset + owned_size;
+        if (read_end < size && size - read_end > overlap)
+            read_end += overlap;
+        else
+            read_end = size;
+        read_size = read_end - read_start;
+        if (libhack_read_memory(handle, base + read_start, buffer, read_size) !=
+            LIBHACK_OK)
+        {
+            free(buffer);
+            libhack_free_match_list(matches);
+            return (libhack_status_t)libhack_get_last_error();
+        }
+        for (index = 0; index + pattern_size <= read_size; ++index)
+        {
+            size_t absolute_offset = read_start + index;
+            if (absolute_offset < owned_offset ||
+                absolute_offset >= owned_offset + owned_size)
+                continue;
+            if (libhack_pattern_matches_windows(buffer, index, pattern, mask,
+                                                 pattern_size) &&
+                libhack_windows_append_match(matches, base + absolute_offset) !=
+                    LIBHACK_OK)
+            {
+                free(buffer);
+                libhack_free_match_list(matches);
+                return LIBHACK_OUT_OF_MEMORY;
+            }
+        }
+    }
+    free(buffer);
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+libhack_status_t libhack_resolve_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count,
+    libhack_address_t *result)
+{
+    libhack_address_t current;
+    size_t index;
+
+    if (handle == NULL || offsets == NULL || offset_count == 0 ||
+        result == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    current = base;
+    for (index = 0; index + 1 < offset_count; ++index)
+    {
+        libhack_address_t pointer_address;
+        libhack_address_t pointer_value;
+        libhack_offset_t offset = offsets[index];
+        if (offset >= 0)
+        {
+            if (current > UINTPTR_MAX - (uintptr_t)offset)
+                return libhack_return_status(LIBHACK_OVERFLOW);
+            pointer_address = current + (uintptr_t)offset;
+        }
+        else
+        {
+            uintptr_t magnitude = (uintptr_t)(-(offset + 1)) + 1;
+            if (current < magnitude)
+                return libhack_return_status(LIBHACK_OVERFLOW);
+            pointer_address = current - magnitude;
+        }
+        if (libhack_read_memory(handle, pointer_address, &pointer_value,
+                                sizeof(pointer_value)) != LIBHACK_OK)
+            return (libhack_status_t)libhack_get_last_error();
+        current = pointer_value;
+    }
+    if (offsets[offset_count - 1] >= 0)
+    {
+        if (current > UINTPTR_MAX - (uintptr_t)offsets[offset_count - 1])
+            return libhack_return_status(LIBHACK_OVERFLOW);
+        current += (uintptr_t)offsets[offset_count - 1];
+    }
+    else
+    {
+        uintptr_t magnitude =
+            (uintptr_t)(-(offsets[offset_count - 1] + 1)) + 1;
+        if (current < magnitude)
+            return libhack_return_status(LIBHACK_OVERFLOW);
+        current -= magnitude;
+    }
+    *result = current;
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+libhack_status_t libhack_read_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count, void *buffer,
+    size_t size)
+{
+    libhack_address_t address;
+    libhack_status_t status;
+    if (buffer == NULL && size != 0)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    status = libhack_resolve_pointer_chain(handle, base, offsets, offset_count,
+                                           &address);
+    if (status != LIBHACK_OK)
+        return status;
+    return libhack_read_memory(handle, address, buffer, size);
+}
+
+libhack_status_t libhack_write_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count, const void *buffer,
+    size_t size)
+{
+    libhack_address_t address;
+    libhack_status_t status;
+    if (buffer == NULL && size != 0)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    status = libhack_resolve_pointer_chain(handle, base, offsets, offset_count,
+                                           &address);
+    if (status != LIBHACK_OK)
+        return status;
+    return libhack_write_memory(handle, address, buffer, size);
+}
+
+libhack_status_t libhack_scan_module(
+    struct libhack_handle *handle, const char *module_name,
+    const uint8_t *pattern, const char *mask, size_t pattern_size,
+    struct libhack_match_list *matches)
+{
+    struct libhack_module_list modules = {0};
+    struct libhack_memory_region_list regions = {0};
+    libhack_address_t module_base = 0;
+    size_t module_size = 0;
+    size_t index;
+    bool found_region = false;
+
+    if (matches == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    matches->addresses = NULL;
+    matches->count = 0;
+    if (handle == NULL || module_name == NULL || pattern == NULL ||
+        mask == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (libhack_get_modules(handle, &modules) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+    for (index = 0; index < modules.count; ++index)
+    {
+        if (_stricmp(modules.items[index].name, module_name) == 0 ||
+            _stricmp(modules.items[index].path, module_name) == 0)
+        {
+            module_base = modules.items[index].base;
+            module_size = modules.items[index].size;
+            break;
+        }
+    }
+    if (module_size == 0)
+    {
+        libhack_free_modules(&modules);
+        libhack_set_last_error(LIBHACK_NOT_FOUND);
+        return LIBHACK_NOT_FOUND;
+    }
+    if (libhack_get_memory_regions(handle, &regions) != LIBHACK_OK)
+    {
+        libhack_free_modules(&modules);
+        return (libhack_status_t)libhack_get_last_error();
+    }
+    for (index = 0; index < regions.count; ++index)
+    {
+        struct libhack_memory_region *region = &regions.items[index];
+        libhack_address_t module_end = module_base + module_size;
+        libhack_address_t region_end = region->base + region->size;
+        libhack_address_t scan_base;
+        size_t scan_size;
+        struct libhack_match_list region_matches = {0};
+        size_t match_index;
+        libhack_status_t status;
+
+        if (!(region->protection & LIBHACK_PROTECTION_READ) ||
+            region_end <= module_base || region->base >= module_end)
+            continue;
+        scan_base = region->base > module_base ? region->base : module_base;
+        scan_size = (size_t)((region_end < module_end ? region_end : module_end) -
+                             scan_base);
+        found_region = true;
+        status = libhack_scan_memory(handle, scan_base, scan_size, pattern, mask,
+                                     pattern_size, &region_matches);
+        if (status != LIBHACK_OK)
+        {
+            libhack_free_match_list(&region_matches);
+            libhack_free_memory_regions(&regions);
+            libhack_free_modules(&modules);
+            libhack_free_match_list(matches);
+            return status;
+        }
+        for (match_index = 0; match_index < region_matches.count;
+             ++match_index)
+        {
+            status = libhack_windows_append_match(
+                matches, region_matches.addresses[match_index]);
+            if (status != LIBHACK_OK)
+            {
+                libhack_free_match_list(&region_matches);
+                libhack_free_memory_regions(&regions);
+                libhack_free_modules(&modules);
+                libhack_free_match_list(matches);
+                return status;
+            }
+        }
+        libhack_free_match_list(&region_matches);
+    }
+    libhack_free_memory_regions(&regions);
+    libhack_free_modules(&modules);
+    if (!found_region)
+    {
+        libhack_free_match_list(matches);
+        libhack_set_last_error(LIBHACK_INVALID_ADDRESS);
+        return LIBHACK_INVALID_ADDRESS;
+    }
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
 }
 
 int libhack_read_int_from_addr64(struct libhack_handle *handle, DWORD64 addr)
@@ -836,7 +1470,7 @@ LIBHACK_API DWORD64 libhack_getsubmodule_addr64v2(struct libhack_handle *handle,
 
 static bool fIsWow64Process(HANDLE hProcess, DWORD *error)
 {
-    bool bIsWow64 = false;
+    BOOL bIsWow64 = FALSE;
     pIsWow64Process fnIsWow64Process;
     HMODULE kernel32 = GetModuleHandleA("kernel32");
 
@@ -888,6 +1522,648 @@ bool libhack_is64bit_process(struct libhack_handle *handle, DWORD *error)
 
 #elif defined(__linux__)
 
+static char *libhack_strdup_local(const char *value)
+{
+    size_t length;
+    char *copy;
+
+    if (value == NULL)
+        return NULL;
+
+    length = strlen(value) + 1;
+    copy = (char *)malloc(length);
+    if (copy != NULL)
+        memcpy(copy, value, length);
+    return copy;
+}
+
+static libhack_status_t libhack_linux_status_from_errno(int error_code)
+{
+    switch (error_code)
+    {
+    case EINVAL:
+        return LIBHACK_INVALID_ARGUMENT;
+    case EACCES:
+    case EPERM:
+        return LIBHACK_ACCESS_DENIED;
+    case EFAULT:
+    case ENXIO:
+        return LIBHACK_INVALID_ADDRESS;
+    case ENOMEM:
+        return LIBHACK_OUT_OF_MEMORY;
+    case ENOSYS:
+        return LIBHACK_UNSUPPORTED;
+    case ENOENT:
+    case ESRCH:
+        return LIBHACK_NOT_FOUND;
+    case EOVERFLOW:
+        return libhack_return_status(LIBHACK_OVERFLOW);
+    default:
+        return LIBHACK_NATIVE_ERROR;
+    }
+}
+
+static libhack_status_t libhack_linux_record_error(int error_code)
+{
+    libhack_set_last_native_error(error_code);
+    libhack_set_last_error(libhack_linux_status_from_errno(error_code));
+    return (libhack_status_t)libhack_get_last_error();
+}
+
+static uint32_t libhack_linux_protection(const char *permissions)
+{
+    uint32_t protection = 0;
+
+    if (permissions == NULL)
+        return protection;
+    if (permissions[0] == 'r')
+        protection |= LIBHACK_PROTECTION_READ;
+    if (permissions[1] == 'w')
+        protection |= LIBHACK_PROTECTION_WRITE;
+    if (permissions[2] == 'x')
+        protection |= LIBHACK_PROTECTION_EXECUTE;
+    return protection;
+}
+
+libhack_status_t libhack_open_process(struct libhack_handle *handle)
+{
+    char proc_path[BUFLEN];
+    struct stat proc_stat;
+
+    if (handle == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+
+    if (handle->pid == -1 && libhack_get_process_id(handle) == -1)
+        return libhack_linux_record_error(errno != 0 ? errno : ESRCH);
+
+    if (handle->pid <= 0 ||
+        snprintf(proc_path, sizeof(proc_path), "/proc/%d", handle->pid) < 0 ||
+        stat(proc_path, &proc_stat) != 0)
+        return libhack_linux_record_error(errno != 0 ? errno : ESRCH);
+    if (!S_ISDIR(proc_stat.st_mode))
+        return libhack_linux_record_error(ENOENT);
+
+    handle->process_is_open = true;
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+void libhack_close_process(struct libhack_handle *handle)
+{
+    if (handle != NULL)
+        handle->process_is_open = false;
+}
+
+libhack_status_t libhack_read_memory(struct libhack_handle *handle,
+                                     libhack_address_t address, void *buffer,
+                                     size_t size)
+{
+    struct iovec local;
+    struct iovec remote;
+    ssize_t transferred;
+
+    if (handle == NULL || (buffer == NULL && size != 0))
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (size == 0)
+        return LIBHACK_OK;
+    if (libhack_open_process(handle) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+
+    local.iov_base = buffer;
+    local.iov_len = size;
+    remote.iov_base = (void *)address;
+    remote.iov_len = size;
+    transferred = process_vm_readv(handle->pid, &local, 1, &remote, 1, 0);
+    if (transferred < 0)
+        return libhack_linux_record_error(errno);
+    if ((size_t)transferred != size)
+    {
+        libhack_set_last_error(LIBHACK_PARTIAL_TRANSFER);
+        return LIBHACK_PARTIAL_TRANSFER;
+    }
+
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+libhack_status_t libhack_write_memory(struct libhack_handle *handle,
+                                      libhack_address_t address,
+                                      const void *buffer, size_t size)
+{
+    struct iovec local;
+    struct iovec remote;
+    ssize_t transferred;
+
+    if (handle == NULL || (buffer == NULL && size != 0))
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (size == 0)
+        return LIBHACK_OK;
+    if (libhack_open_process(handle) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+
+    local.iov_base = (void *)buffer;
+    local.iov_len = size;
+    remote.iov_base = (void *)address;
+    remote.iov_len = size;
+    transferred = process_vm_writev(handle->pid, &local, 1, &remote, 1, 0);
+    if (transferred < 0)
+        return libhack_linux_record_error(errno);
+    if ((size_t)transferred != size)
+    {
+        libhack_set_last_error(LIBHACK_PARTIAL_TRANSFER);
+        return LIBHACK_PARTIAL_TRANSFER;
+    }
+
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+void libhack_free_memory_regions(struct libhack_memory_region_list *regions)
+{
+    size_t index;
+
+    if (regions == NULL)
+        return;
+    for (index = 0; index < regions->count; ++index)
+        free(regions->items[index].path);
+    free(regions->items);
+    regions->items = NULL;
+    regions->count = 0;
+}
+
+libhack_status_t libhack_get_memory_regions(
+    struct libhack_handle *handle, struct libhack_memory_region_list *regions)
+{
+    char maps_path[BUFLEN];
+    char *line = NULL;
+    size_t line_capacity = 0;
+    FILE *maps_file;
+    struct stat maps_stat;
+
+    if (regions == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    regions->items = NULL;
+    regions->count = 0;
+    if (handle == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (libhack_open_process(handle) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+
+    if (snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", handle->pid) < 0)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    maps_file = fopen(maps_path, "r");
+    if (maps_file == NULL)
+        return libhack_linux_record_error(errno);
+    if (stat(maps_path, &maps_stat) != 0)
+    {
+        int error_code = errno;
+        fclose(maps_file);
+        return libhack_linux_record_error(error_code);
+    }
+
+    while (getline(&line, &line_capacity, maps_file) >= 0)
+    {
+        unsigned long long start;
+        unsigned long long end;
+        char permissions[8] = {0};
+        char path[BUFLEN] = {0};
+        int fields;
+        struct libhack_memory_region *new_items;
+        struct libhack_memory_region *region;
+
+        fields = sscanf(line, "%llx-%llx %7s %*s %*s %*s %255[^\n]",
+                        &start, &end, permissions, path);
+        if (fields < 3 || end < start || end - start > SIZE_MAX)
+            continue;
+
+        new_items = (struct libhack_memory_region *)realloc(
+            regions->items,
+            (regions->count + 1) * sizeof(struct libhack_memory_region));
+        if (new_items == NULL)
+        {
+            free(line);
+            fclose(maps_file);
+            libhack_free_memory_regions(regions);
+            return LIBHACK_OUT_OF_MEMORY;
+        }
+        regions->items = new_items;
+        region = &regions->items[regions->count++];
+        region->base = (libhack_address_t)start;
+        region->size = (size_t)(end - start);
+        region->protection = libhack_linux_protection(permissions);
+        region->path = (fields >= 4 && path[0] != '\0')
+                           ? libhack_strdup_local(path)
+                           : NULL;
+        if (fields >= 4 && path[0] != '\0' && region->path == NULL)
+        {
+            free(line);
+            fclose(maps_file);
+            libhack_free_memory_regions(regions);
+            return LIBHACK_OUT_OF_MEMORY;
+        }
+    }
+
+    free(line);
+    fclose(maps_file);
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+void libhack_free_modules(struct libhack_module_list *modules)
+{
+    size_t index;
+
+    if (modules == NULL)
+        return;
+    for (index = 0; index < modules->count; ++index)
+    {
+        free(modules->items[index].name);
+        free(modules->items[index].path);
+    }
+    free(modules->items);
+    modules->items = NULL;
+    modules->count = 0;
+}
+
+libhack_status_t libhack_get_modules(struct libhack_handle *handle,
+                                     struct libhack_module_list *modules)
+{
+    struct libhack_memory_region_list regions = {0};
+    size_t region_index;
+
+    if (modules == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    modules->items = NULL;
+    modules->count = 0;
+    if (handle == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (libhack_get_memory_regions(handle, &regions) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+
+    for (region_index = 0; region_index < regions.count; ++region_index)
+    {
+        struct libhack_memory_region *region = &regions.items[region_index];
+        size_t module_index;
+        size_t path_length;
+        struct libhack_module *module = NULL;
+
+        if (region->path == NULL || region->path[0] != '/')
+            continue;
+        for (module_index = 0; module_index < modules->count; ++module_index)
+        {
+            if (strcmp(modules->items[module_index].path, region->path) == 0)
+            {
+                module = &modules->items[module_index];
+                break;
+            }
+        }
+        if (module == NULL)
+        {
+            struct libhack_module *new_items = (struct libhack_module *)realloc(
+                modules->items,
+                (modules->count + 1) * sizeof(struct libhack_module));
+            if (new_items == NULL)
+            {
+                libhack_free_memory_regions(&regions);
+                libhack_free_modules(modules);
+                return LIBHACK_OUT_OF_MEMORY;
+            }
+            modules->items = new_items;
+            module = &modules->items[modules->count++];
+            memset(module, 0, sizeof(*module));
+            module->path = libhack_strdup_local(region->path);
+            path_length = strlen(region->path);
+            while (path_length > 0 && region->path[path_length - 1] != '/')
+                --path_length;
+            module->name = libhack_strdup_local(region->path + path_length);
+            if (module->path == NULL || module->name == NULL)
+            {
+                libhack_free_memory_regions(&regions);
+                libhack_free_modules(modules);
+                return LIBHACK_OUT_OF_MEMORY;
+            }
+            module->base = region->base;
+            module->size = region->size;
+        }
+        else
+        {
+            libhack_address_t region_end = region->base + region->size;
+            libhack_address_t module_end = module->base + module->size;
+            libhack_address_t new_base =
+                region->base < module->base ? region->base : module->base;
+            libhack_address_t new_end =
+                region_end > module_end ? region_end : module_end;
+            module->base = new_base;
+            module->size = (size_t)(new_end - new_base);
+        }
+    }
+
+    libhack_free_memory_regions(&regions);
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+static bool libhack_pattern_matches(const uint8_t *buffer, size_t offset,
+                                    const uint8_t *pattern, const char *mask,
+                                    size_t pattern_size)
+{
+    size_t index;
+
+    for (index = 0; index < pattern_size; ++index)
+    {
+        if (mask[index] == 'x' && buffer[offset + index] != pattern[index])
+            return false;
+    }
+    return true;
+}
+
+static libhack_status_t libhack_match_list_append(
+    struct libhack_match_list *matches, libhack_address_t address)
+{
+    libhack_address_t *new_addresses = (libhack_address_t *)realloc(
+        matches->addresses,
+        (matches->count + 1) * sizeof(libhack_address_t));
+    if (new_addresses == NULL)
+        return LIBHACK_OUT_OF_MEMORY;
+    matches->addresses = new_addresses;
+    matches->addresses[matches->count++] = address;
+    return LIBHACK_OK;
+}
+
+libhack_status_t libhack_scan_memory(
+    struct libhack_handle *handle, libhack_address_t base, size_t size,
+    const uint8_t *pattern, const char *mask, size_t pattern_size,
+    struct libhack_match_list *matches)
+{
+    const size_t chunk_size = 1024 * 1024;
+    size_t overlap;
+    size_t owned_offset;
+    uint8_t *buffer;
+    libhack_status_t status;
+    size_t index;
+
+    if (matches == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    matches->addresses = NULL;
+    matches->count = 0;
+    if (handle == NULL || pattern == NULL || mask == NULL || pattern_size == 0)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    if (strlen(mask) < pattern_size)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    for (index = 0; index < pattern_size; ++index)
+    {
+        if (mask[index] != 'x' && mask[index] != '?')
+            return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    }
+    if (size < pattern_size)
+        return LIBHACK_OK;
+    if (base > UINTPTR_MAX - size)
+        return libhack_return_status(LIBHACK_OVERFLOW);
+    overlap = pattern_size - 1;
+    if (overlap > SIZE_MAX - chunk_size)
+        return libhack_return_status(LIBHACK_OVERFLOW);
+    buffer = (uint8_t *)malloc(chunk_size + overlap);
+    if (buffer == NULL)
+        return LIBHACK_OUT_OF_MEMORY;
+
+    for (owned_offset = 0; owned_offset < size; owned_offset += chunk_size)
+    {
+        size_t owned_size = size - owned_offset;
+        size_t read_start;
+        size_t read_end;
+        size_t read_size;
+
+        if (owned_size > chunk_size)
+            owned_size = chunk_size;
+        read_start = owned_offset > overlap ? owned_offset - overlap : 0;
+        read_end = owned_offset + owned_size;
+        if (read_end < size && size - read_end > overlap)
+            read_end += overlap;
+        else
+            read_end = size;
+        read_size = read_end - read_start;
+        status = libhack_read_memory(handle, base + read_start, buffer,
+                                     read_size);
+        if (status != LIBHACK_OK)
+        {
+            free(buffer);
+            libhack_free_match_list(matches);
+            return status;
+        }
+        for (index = 0; index + pattern_size <= read_size; ++index)
+        {
+            size_t absolute_offset = read_start + index;
+            if (absolute_offset < owned_offset ||
+                absolute_offset >= owned_offset + owned_size)
+                continue;
+            if (libhack_pattern_matches(buffer, index, pattern, mask,
+                                        pattern_size) &&
+                libhack_match_list_append(matches, base + absolute_offset) !=
+                    LIBHACK_OK)
+            {
+                free(buffer);
+                libhack_free_match_list(matches);
+                return LIBHACK_OUT_OF_MEMORY;
+            }
+        }
+    }
+
+    free(buffer);
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+void libhack_free_match_list(struct libhack_match_list *matches)
+{
+    if (matches == NULL)
+        return;
+    free(matches->addresses);
+    matches->addresses = NULL;
+    matches->count = 0;
+}
+
+libhack_status_t libhack_scan_module(
+    struct libhack_handle *handle, const char *module_name,
+    const uint8_t *pattern, const char *mask, size_t pattern_size,
+    struct libhack_match_list *matches)
+{
+    struct libhack_module_list modules = {0};
+    struct libhack_memory_region_list regions = {0};
+    const char *module_path = NULL;
+    size_t index;
+    bool found_region = false;
+
+    if (matches == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    matches->addresses = NULL;
+    matches->count = 0;
+    if (handle == NULL || module_name == NULL || pattern == NULL ||
+        mask == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+
+    if (libhack_get_modules(handle, &modules) != LIBHACK_OK)
+        return (libhack_status_t)libhack_get_last_error();
+    for (index = 0; index < modules.count; ++index)
+    {
+        if (strcasecmp(modules.items[index].name, module_name) == 0 ||
+            strcasecmp(modules.items[index].path, module_name) == 0)
+        {
+            module_path = modules.items[index].path;
+            break;
+        }
+    }
+    if (module_path == NULL)
+    {
+        libhack_free_modules(&modules);
+        libhack_set_last_error(LIBHACK_NOT_FOUND);
+        return LIBHACK_NOT_FOUND;
+    }
+
+    if (libhack_get_memory_regions(handle, &regions) != LIBHACK_OK)
+    {
+        libhack_free_modules(&modules);
+        return (libhack_status_t)libhack_get_last_error();
+    }
+    for (index = 0; index < regions.count; ++index)
+    {
+        struct libhack_match_list region_matches = {0};
+        struct libhack_memory_region *region = &regions.items[index];
+        size_t match_index;
+        libhack_status_t status;
+
+        if (region->path == NULL || strcmp(region->path, module_path) != 0 ||
+            !(region->protection & LIBHACK_PROTECTION_READ))
+            continue;
+        found_region = true;
+        status = libhack_scan_memory(handle, region->base, region->size,
+                                     pattern, mask, pattern_size,
+                                     &region_matches);
+        if (status != LIBHACK_OK)
+        {
+            libhack_free_match_list(&region_matches);
+            libhack_free_memory_regions(&regions);
+            libhack_free_modules(&modules);
+            libhack_free_match_list(matches);
+            return status;
+        }
+        for (match_index = 0; match_index < region_matches.count;
+             ++match_index)
+        {
+            status = libhack_match_list_append(
+                matches, region_matches.addresses[match_index]);
+            if (status != LIBHACK_OK)
+            {
+                libhack_free_match_list(&region_matches);
+                libhack_free_memory_regions(&regions);
+                libhack_free_modules(&modules);
+                libhack_free_match_list(matches);
+                return status;
+            }
+        }
+        libhack_free_match_list(&region_matches);
+    }
+
+    libhack_free_memory_regions(&regions);
+    libhack_free_modules(&modules);
+    if (!found_region)
+    {
+        libhack_free_match_list(matches);
+        libhack_set_last_error(LIBHACK_INVALID_ADDRESS);
+        return LIBHACK_INVALID_ADDRESS;
+    }
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+libhack_status_t libhack_resolve_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count,
+    libhack_address_t *result)
+{
+    libhack_address_t current;
+    size_t index;
+
+    if (handle == NULL || offsets == NULL || offset_count == 0 ||
+        result == NULL)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    current = base;
+    for (index = 0; index + 1 < offset_count; ++index)
+    {
+        libhack_address_t pointer_address;
+        libhack_address_t pointer_value;
+        libhack_offset_t offset = offsets[index];
+
+        if (offset >= 0)
+        {
+            if (current > UINTPTR_MAX - (uintptr_t)offset)
+                return libhack_return_status(LIBHACK_OVERFLOW);
+            pointer_address = current + (uintptr_t)offset;
+        }
+        else
+        {
+            uintptr_t magnitude = (uintptr_t)(-(offset + 1)) + 1;
+            if (current < magnitude)
+                return libhack_return_status(LIBHACK_OVERFLOW);
+            pointer_address = current - magnitude;
+        }
+        if (libhack_read_memory(handle, pointer_address, &pointer_value,
+                                sizeof(pointer_value)) != LIBHACK_OK)
+            return (libhack_status_t)libhack_get_last_error();
+        current = pointer_value;
+    }
+
+    if (offsets[offset_count - 1] >= 0)
+    {
+        if (current > UINTPTR_MAX - (uintptr_t)offsets[offset_count - 1])
+            return libhack_return_status(LIBHACK_OVERFLOW);
+        current += (uintptr_t)offsets[offset_count - 1];
+    }
+    else
+    {
+        uintptr_t magnitude = (uintptr_t)(-(offsets[offset_count - 1] + 1)) + 1;
+        if (current < magnitude)
+            return libhack_return_status(LIBHACK_OVERFLOW);
+        current -= magnitude;
+    }
+    *result = current;
+    libhack_set_last_error(LIBHACK_OK);
+    return LIBHACK_OK;
+}
+
+libhack_status_t libhack_read_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count, void *buffer,
+    size_t size)
+{
+    libhack_address_t address;
+    libhack_status_t status;
+
+    if (buffer == NULL && size != 0)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    status = libhack_resolve_pointer_chain(handle, base, offsets, offset_count,
+                                           &address);
+    if (status != LIBHACK_OK)
+        return status;
+    return libhack_read_memory(handle, address, buffer, size);
+}
+
+libhack_status_t libhack_write_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count, const void *buffer,
+    size_t size)
+{
+    libhack_address_t address;
+    libhack_status_t status;
+
+    if (buffer == NULL && size != 0)
+        return libhack_return_status(LIBHACK_INVALID_ARGUMENT);
+    status = libhack_resolve_pointer_chain(handle, base, offsets, offset_count,
+                                           &address);
+    if (status != LIBHACK_OK)
+        return status;
+    return libhack_write_memory(handle, address, buffer, size);
+}
+
 static bool libhack_read_process_name(const char *pid_name,
                                       char *process_name,
                                       size_t process_name_size)
@@ -897,7 +2173,7 @@ static bool libhack_read_process_name(const char *pid_name,
     int comm_fd;
 
     if (!pid_name || !process_name || process_name_size < 2)
-        return false;
+        return LIBHACK_NOT_FOUND;
 
     if (snprintf(comm_path, sizeof(comm_path), "/proc/%s/comm", pid_name) < 0)
         return false;
@@ -980,6 +2256,28 @@ long libhack_read_int_from_addr(const struct libhack_handle *handle, DWORD addr,
 
 long libhack_get_base_addr(struct libhack_handle *handle)
 {
+    struct libhack_module_list modules = {0};
+    size_t module_index;
+
+    if (handle == NULL)
+        return -1;
+    if (handle->base_addr > 0)
+        return handle->base_addr;
+    if (libhack_get_modules(handle, &modules) == LIBHACK_OK)
+    {
+        for (module_index = 0; module_index < modules.count; ++module_index)
+        {
+            if (strcasecmp(modules.items[module_index].name,
+                           handle->process_name) == 0)
+            {
+                handle->base_addr = (long)modules.items[module_index].base;
+                libhack_free_modules(&modules);
+                return handle->base_addr;
+            }
+        }
+        libhack_free_modules(&modules);
+    }
+
     pid_t pid;
     char maps_path[BUFLEN];
     char *line;
@@ -1266,6 +2564,7 @@ bool libhack_process_is_running(struct libhack_handle *handle)
 
     closedir(d);
 
+    libhack_set_last_error(LIBHACK_OK);
     return true;
 }
 

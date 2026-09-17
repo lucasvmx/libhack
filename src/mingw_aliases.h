@@ -17,4 +17,9 @@
 #define K32GetModuleBaseNameA(p1,p2,p3,p4)		GetModuleBaseNameA(p1,p2,p3,p4)
 #endif
 
+#if defined(_MSC_VER)
+#define strlwr _strlwr
+#define strnicmp _strnicmp
+#endif
+
 #endif

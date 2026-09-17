@@ -11,6 +11,10 @@
 
 #include "types.h"
 
+#ifndef __MINGW__
+#include "mingw_aliases.h"
+#endif
+
 #if defined(__MINGW__) || defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #include <tlhelp32.h>
@@ -23,6 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <sys/param.h>
 #include "init.h"
 #include "logger.h"
@@ -115,7 +120,9 @@ struct libhack_handle *libhack_init(const char *process_name)
 #endif
 
     /* Copy process name to internal variable */
-    strncpy(lh->process_name, process_name, sizeof(lh->process_name) / sizeof(lh->process_name[0]));
+    strncpy(lh->process_name, process_name,
+            sizeof(lh->process_name) / sizeof(lh->process_name[0]) - 1);
+    lh->process_name[sizeof(lh->process_name) - 1] = '\0';
 
     // Transform process name to lowercase
     strlwr(lh->process_name);
@@ -125,8 +132,29 @@ struct libhack_handle *libhack_init(const char *process_name)
     return lh;
 }
 
+LIBHACK_API struct libhack_handle *libhack_init_by_pid(libhack_pid_t pid)
+{
+    struct libhack_handle *lh;
+
+    if (pid == 0 || pid > UINT32_MAX)
+        return NULL;
+
+    lh = (struct libhack_handle *)calloc(1, sizeof(*lh));
+    if (!lh)
+        return NULL;
+
+    lh->pid = (DWORD)pid;
+    lh->base_addr = 0;
+    lh->process_name[0] = '\0';
+    return lh;
+}
 void libhack_free(struct libhack_handle *lh_handle)
 {
+#ifdef __windows__
+    if (lh_handle != NULL && lh_handle->bProcessIsOpen &&
+        lh_handle->hProcess != NULL)
+        CloseHandle(lh_handle->hProcess);
+#endif
     free(lh_handle);
 }
 
@@ -159,6 +187,25 @@ struct libhack_handle *libhack_init(const char *process_name)
     // Initializes default base address
     lh->base_addr = -1;
 
+    lh->process_is_open = false;
+
+    return lh;
+}
+
+struct libhack_handle *libhack_init_by_pid(libhack_pid_t pid)
+{
+    struct libhack_handle *lh;
+
+    if (pid == 0 || pid > (libhack_pid_t)INT_MAX)
+        return NULL;
+
+    lh = (struct libhack_handle *)calloc(1, sizeof(*lh));
+    if (!lh)
+        return NULL;
+
+    lh->pid = (pid_t)pid;
+    lh->base_addr = -1;
+    lh->process_is_open = false;
     return lh;
 }
 

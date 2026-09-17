@@ -22,17 +22,89 @@ extern "C" {
 
 #include "init.h"
 #include "types.h"
+#include "status_codes.h"
 #include <stdbool.h>
+
+struct libhack_memory_region
+{
+    libhack_address_t base;
+    size_t size;
+    uint32_t protection;
+    char *path;
+};
+
+struct libhack_memory_region_list
+{
+    struct libhack_memory_region *items;
+    size_t count;
+};
+
+struct libhack_module
+{
+    libhack_address_t base;
+    size_t size;
+    char *name;
+    char *path;
+};
+
+struct libhack_module_list
+{
+    struct libhack_module *items;
+    size_t count;
+};
+
+struct libhack_match_list
+{
+    libhack_address_t *addresses;
+    size_t count;
+};
+
+LIBHACK_API libhack_status_t libhack_read_memory(
+    struct libhack_handle *handle, libhack_address_t address, void *buffer,
+    size_t size);
+LIBHACK_API libhack_status_t libhack_write_memory(
+    struct libhack_handle *handle, libhack_address_t address,
+    const void *buffer, size_t size);
+LIBHACK_API libhack_status_t libhack_open_process(
+    struct libhack_handle *handle);
+LIBHACK_API void libhack_close_process(struct libhack_handle *handle);
+LIBHACK_API libhack_status_t libhack_get_memory_regions(
+    struct libhack_handle *handle,
+    struct libhack_memory_region_list *regions);
+LIBHACK_API void libhack_free_memory_regions(
+    struct libhack_memory_region_list *regions);
+LIBHACK_API libhack_status_t libhack_get_modules(
+    struct libhack_handle *handle, struct libhack_module_list *modules);
+LIBHACK_API void libhack_free_modules(struct libhack_module_list *modules);
+LIBHACK_API libhack_status_t libhack_scan_memory(
+    struct libhack_handle *handle, libhack_address_t base, size_t size,
+    const uint8_t *pattern, const char *mask, size_t pattern_size,
+    struct libhack_match_list *matches);
+LIBHACK_API libhack_status_t libhack_scan_module(
+    struct libhack_handle *handle, const char *module_name,
+    const uint8_t *pattern, const char *mask, size_t pattern_size,
+    struct libhack_match_list *matches);
+LIBHACK_API void libhack_free_match_list(struct libhack_match_list *matches);
+LIBHACK_API libhack_status_t libhack_resolve_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count,
+    libhack_address_t *result);
+LIBHACK_API libhack_status_t libhack_read_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count, void *buffer,
+    size_t size);
+LIBHACK_API libhack_status_t libhack_write_pointer_chain(
+    struct libhack_handle *handle, libhack_address_t base,
+    const libhack_offset_t *offsets, size_t offset_count, const void *buffer,
+    size_t size);
 
 #ifdef __windows__
 /**
  * @brief Opens the process specified when initializing library
  *
  * @param handle Handle to libhack previously opened by libhack_init
- * @return bool true on success false otherwise
+ * @return LIBHACK_OK on success or a libhack_status_t error code
  */
-LIBHACK_API bool libhack_open_process(struct libhack_handle *handle);
-
 /**
  * @brief Gets the process ID
  *
